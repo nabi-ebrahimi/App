@@ -28,7 +28,6 @@ import {
     isCurrencySupportWalletBulkPay,
     payMoneyRequestOnSearch,
     queueExportSearchItemsToCSV,
-    queueExportSearchWithTemplate,
     submitMoneyRequestOnSearch,
 } from '@libs/actions/Search';
 import initSplitExpense from '@libs/actions/SplitExpenses';
@@ -70,6 +69,7 @@ import useNetwork from './useNetwork';
 import useOnyx from './useOnyx';
 import usePermissions from './usePermissions';
 import usePersonalPolicy from './usePersonalPolicy';
+import useQueuedSearchExport from './useQueuedSearchExport';
 import useSelfDMReport from './useSelfDMReport';
 import useTheme from './useTheme';
 import useThemeStyles from './useThemeStyles';
@@ -141,6 +141,9 @@ function useSearchBulkActions({queryJSON}: UseSearchBulkActionsParams) {
     const [isDownloadErrorModalVisible, setIsDownloadErrorModalVisible] = useState(false);
     const [isNonReimbursablePaymentErrorModalVisible, setIsNonReimbursablePaymentErrorModalVisible] = useState(false);
     const {showConfirmModal} = useConfirmModal();
+    const {queueBasicSearchExport, queueTemplateSearchExport} = useQueuedSearchExport({
+        onConfirmed: () => clearSelectedTransactions(undefined, true),
+    });
     const [isHoldEducationalModalVisible, setIsHoldEducationalModalVisible] = useState(false);
     const [rejectModalAction, setRejectModalAction] = useState<ValueOf<
         typeof CONST.REPORT.TRANSACTION_SECONDARY_ACTIONS.HOLD | typeof CONST.REPORT.TRANSACTION_SECONDARY_ACTIONS.REJECT
@@ -255,54 +258,28 @@ function useSearchBulkActions({queryJSON}: UseSearchBulkActionsParams) {
                 setIsDownloadErrorModalVisible(true);
                 return;
             }
-            if (isOffline) {
-                setIsOfflineModalVisible(true);
-                return;
-            }
 
             if (areAllMatchingItemsSelected) {
-                queueExportSearchWithTemplate({
+                await queueTemplateSearchExport({
                     templateName,
                     templateType,
-                    jsonQuery: queryJSON ? serializeQueryJSONForBackend(queryJSON) : JSON.stringify(queryJSON),
+                    queryJSON,
                     reportIDList: [],
                     transactionIDList: [],
                     policyID,
                 });
             } else {
-                queueExportSearchWithTemplate({
+                await queueTemplateSearchExport({
                     templateName,
                     templateType,
-                    jsonQuery: '{}',
+                    fallbackJSONQuery: '{}',
                     reportIDList: selectedTransactionReportIDs,
                     transactionIDList: selectedTransactionsKeys,
                     policyID,
                 });
             }
-
-            const result = await showConfirmModal({
-                title: translate('export.exportInProgress'),
-                prompt: translate('export.conciergeWillSend'),
-                confirmText: translate('common.buttonConfirm'),
-                shouldShowCancelButton: false,
-            });
-            if (result.action !== ModalActions.CONFIRM) {
-                return;
-            }
-            clearSelectedTransactions(undefined, true);
         },
-        [
-            selectedReports,
-            isOffline,
-            areAllMatchingItemsSelected,
-            showConfirmModal,
-            translate,
-            clearSelectedTransactions,
-            currentSearchResults?.data,
-            queryJSON,
-            selectedTransactionReportIDs,
-            selectedTransactionsKeys,
-        ],
+        [selectedReports, areAllMatchingItemsSelected, currentSearchResults?.data, queryJSON, selectedTransactionReportIDs, selectedTransactionsKeys, queueTemplateSearchExport],
     );
 
     const policyIDsWithVBBA = useMemo(() => {
@@ -319,11 +296,6 @@ function useSearchBulkActions({queryJSON}: UseSearchBulkActionsParams) {
     }, [policies]);
 
     const handleBasicExport = useCallback(async () => {
-        if (isOffline) {
-            setIsOfflineModalVisible(true);
-            return;
-        }
-
         if (status === null || status === undefined) {
             return;
         }
@@ -350,6 +322,16 @@ function useSearchBulkActions({queryJSON}: UseSearchBulkActionsParams) {
             });
             selectAllMatchingItems(false);
             clearSelectedTransactions();
+            return;
+        }
+
+        if (isOffline) {
+            await queueBasicSearchExport({
+                query: status,
+                queryJSON,
+                reportIDList: selectedReports.length > 0 ? selectedReportIDs : selectedTransactionReportIDs,
+                transactionIDList: selectedTransactionsKeys,
+            });
             return;
         }
 
@@ -385,6 +367,7 @@ function useSearchBulkActions({queryJSON}: UseSearchBulkActionsParams) {
         showConfirmModal,
         hash,
         selectAllMatchingItems,
+        queueBasicSearchExport,
     ]);
 
     const handleApproveWithDEWCheck = useCallback(async () => {

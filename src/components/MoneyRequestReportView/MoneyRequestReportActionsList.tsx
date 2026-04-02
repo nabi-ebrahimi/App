@@ -31,6 +31,7 @@ import useNetworkWithOfflineStatus from '@hooks/useNetworkWithOfflineStatus';
 import useOnyx from '@hooks/useOnyx';
 import useParentReportAction from '@hooks/useParentReportAction';
 import usePrevious from '@hooks/usePrevious';
+import useQueuedSearchExport from '@hooks/useQueuedSearchExport';
 import useReportIsArchived from '@hooks/useReportIsArchived';
 import useReportScrollManager from '@hooks/useReportScrollManager';
 import useResponsiveLayoutOnWideRHP from '@hooks/useResponsiveLayoutOnWideRHP';
@@ -39,7 +40,6 @@ import useSelectedTransactionsActions from '@hooks/useSelectedTransactionsAction
 import useThemeStyles from '@hooks/useThemeStyles';
 import useWindowDimensions from '@hooks/useWindowDimensions';
 import {dismissRejectUseExplanation} from '@libs/actions/IOU';
-import {queueExportSearchWithTemplate} from '@libs/actions/Search';
 import DateUtils from '@libs/DateUtils';
 import getNonEmptyStringOnyxID from '@libs/getNonEmptyStringOnyxID';
 import {isActionVisibleOnMoneyRequestReport} from '@libs/MoneyRequestReportUtils';
@@ -60,6 +60,7 @@ import {
     wasMessageReceivedWhileOffline,
 } from '@libs/ReportActionsUtils';
 import {canUserPerformWriteAction, chatIncludesChronosWithID, getOriginalReportID, getReportLastVisibleActionCreated, isHarvestCreatedExpenseReport, isUnread} from '@libs/ReportUtils';
+import {getCurrentSearchQueryJSON} from '@libs/SearchQueryUtils';
 import shouldPopoverUseScrollView from '@libs/shouldPopoverUseScrollView';
 import markOpenReportEnd from '@libs/telemetry/markOpenReportEnd';
 import type {SkeletonSpanReasonAttributes} from '@libs/telemetry/useSkeletonSpan';
@@ -210,9 +211,8 @@ function MoneyRequestReportActionsList({
     const [enableScrollToEnd, setEnableScrollToEnd] = useState<boolean>(false);
     const [lastActionEventId, setLastActionEventId] = useState<string>('');
 
-    const {selectedTransactionIDs, currentSelectedTransactionReportID} = useSearchStateContext();
+    const {selectedTransactionIDs, currentSelectedTransactionReportID, currentSearchQueryJSON, currentSearchResults} = useSearchStateContext();
     const {setSelectedTransactions, clearSelectedTransactions, setCurrentSelectedTransactionReportID} = useSearchActionsContext();
-
     useFocusEffect(
         useCallback(() => {
             if (reportID && currentSelectedTransactionReportID !== reportID && selectedTransactionIDs.length > 0) {
@@ -227,38 +227,46 @@ function MoneyRequestReportActionsList({
 
     const isMobileSelectionModeEnabled = useMobileSelectionMode();
     const {showConfirmModal} = useConfirmModal();
+    const isOnSearch = isSearchTopmostFullScreenRoute();
+    const {queueBasicSearchExport, queueTemplateSearchExport} = useQueuedSearchExport({
+        onConfirmed: () => clearSelectedTransactions(undefined, true),
+    });
     const beginExportWithTemplate = useCallback(
-        (templateName: string, templateType: string, transactionIDList: string[]) => {
-            if (isOffline) {
-                setOfflineModalVisible(true);
-                return;
-            }
-
+        async (templateName: string, templateType: string, transactionIDList: string[]) => {
             if (!report) {
                 return;
             }
 
-            queueExportSearchWithTemplate({
+            await queueTemplateSearchExport({
                 templateName,
                 templateType,
-                jsonQuery: '{}',
+                fallbackJSONQuery: '{}',
                 reportIDList: [report.reportID],
                 transactionIDList,
                 policyID: policy?.id,
             });
+        },
+        [report, policy?.id, queueTemplateSearchExport],
+    );
 
-            showConfirmModal({
-                title: translate('export.exportInProgress'),
-                prompt: translate('export.conciergeWillSend'),
-                confirmText: translate('common.buttonConfirm'),
-                shouldShowCancelButton: false,
-            }).then((result) => {
-                if (result.action === ModalActions.CONFIRM) {
-                    clearSelectedTransactions(undefined, true);
-                }
+    const beginQueuedBasicExport = useCallback(
+        async (transactionIDList: string[]) => {
+            const currentQueryForExport = currentSearchQueryJSON ?? getCurrentSearchQueryJSON();
+            const exportQuery = currentSearchResults?.search.status ?? currentQueryForExport?.status;
+
+            if (!report || exportQuery === undefined) {
+                setOfflineModalVisible(true);
+                return;
+            }
+
+            await queueBasicSearchExport({
+                query: exportQuery,
+                queryJSON: currentQueryForExport,
+                reportIDList: [report.reportID],
+                transactionIDList,
             });
         },
-        [isOffline, report, policy?.id, showConfirmModal, translate, clearSelectedTransactions],
+        [currentSearchQueryJSON, currentSearchResults?.search.status, report, queueBasicSearchExport],
     );
 
     const onDeleteSelected = useCallback(
@@ -296,9 +304,15 @@ function MoneyRequestReportActionsList({
         allTransactionsLength: transactions.length,
         session,
         onExportFailed: () => setIsDownloadErrorModalVisible(true),
+        beginQueuedBasicExport: (transactionIDList) => {
+            beginQueuedBasicExport(transactionIDList);
+        },
         onExportOffline: () => setOfflineModalVisible(true),
         policy,
-        beginExportWithTemplate: (templateName, templateType, transactionIDList) => beginExportWithTemplate(templateName, templateType, transactionIDList),
+        beginExportWithTemplate: (templateName, templateType, transactionIDList) => {
+            beginExportWithTemplate(templateName, templateType, transactionIDList);
+        },
+        isOnSearch,
         onDeleteSelected,
     });
 
@@ -788,7 +802,6 @@ function MoneyRequestReportActionsList({
             isReportArchived,
             reportNameValuePairs?.origin,
             reportNameValuePairs?.originalID,
-            isOffline,
         ],
     );
 

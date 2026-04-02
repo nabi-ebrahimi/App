@@ -33,6 +33,7 @@ import usePaymentOptions from '@hooks/usePaymentOptions';
 import usePermissions from '@hooks/usePermissions';
 import usePersonalPolicy from '@hooks/usePersonalPolicy';
 import usePolicy from '@hooks/usePolicy';
+import useQueuedSearchExport from '@hooks/useQueuedSearchExport';
 import useReportIsArchived from '@hooks/useReportIsArchived';
 import useReportTransactionsCollection from '@hooks/useReportTransactionsCollection';
 import useResponsiveLayout from '@hooks/useResponsiveLayout';
@@ -50,7 +51,7 @@ import {openOldDotLink} from '@libs/actions/Link';
 import {setupMergeTransactionDataAndNavigate} from '@libs/actions/MergeTransaction';
 import {turnOffMobileSelectionMode} from '@libs/actions/MobileSelectionMode';
 import {deleteAppReport, downloadReportPDF, exportReportToCSV, exportReportToPDF, exportToIntegration, markAsManuallyExported} from '@libs/actions/Report';
-import {getExportTemplates, queueExportSearchWithTemplate, search} from '@libs/actions/Search';
+import {getExportTemplates, search} from '@libs/actions/Search';
 import initSplitExpense from '@libs/actions/SplitExpenses';
 import {setNameValuePair} from '@libs/actions/User';
 import getNonEmptyStringOnyxID from '@libs/getNonEmptyStringOnyxID';
@@ -116,6 +117,7 @@ import {
     rejectMoneyRequestReason,
     shouldBlockSubmitDueToStrictPolicyRules,
 } from '@libs/ReportUtils';
+import {getCurrentSearchQueryJSON} from '@libs/SearchQueryUtils';
 import shouldPopoverUseScrollView from '@libs/shouldPopoverUseScrollView';
 import {shouldRestrictUserBillableActions} from '@libs/SubscriptionUtils';
 import type {SkeletonSpanReasonAttributes} from '@libs/telemetry/useSkeletonSpan';
@@ -533,47 +535,49 @@ function MoneyReportHeader({reportID: reportIDProp, shouldDisplayBackButton = fa
     const shouldDisplayNarrowMoreButton = !shouldDisplayNarrowVersion || isWideRHPDisplayedOnWideLayout || isSuperWideRHPDisplayedOnWideLayout;
 
     const [offlineModalVisible, setOfflineModalVisible] = useState(false);
+    const isOnSearch = route.name.toLowerCase().startsWith('search');
+    const {queueBasicSearchExport, queueTemplateSearchExport} = useQueuedSearchExport({
+        onConfirmed: () => clearSelectedTransactions(undefined, true),
+    });
     const {showNonReimbursablePaymentErrorModal, shouldBlockDirectPayment, nonReimbursablePaymentErrorDecisionModal} = useNonReimbursablePaymentModal(moneyRequestReport, transactions);
 
-    const showExportProgressModal = useCallback(() => {
-        return showConfirmModal({
-            title: translate('export.exportInProgress'),
-            prompt: translate('export.conciergeWillSend'),
-            confirmText: translate('common.buttonConfirm'),
-            shouldShowCancelButton: false,
-        });
-    }, [showConfirmModal, translate]);
-
     const beginExportWithTemplate = useCallback(
-        (templateName: string, templateType: string, transactionIDList: string[], policyID?: string) => {
-            if (isOffline) {
-                setOfflineModalVisible(true);
-                return;
-            }
-
+        async (templateName: string, templateType: string, transactionIDList: string[], policyID?: string) => {
             if (!moneyRequestReport) {
                 return;
             }
 
-            showExportProgressModal().then((result) => {
-                if (result.action !== ModalActions.CONFIRM) {
-                    return;
-                }
-                clearSelectedTransactions(undefined, true);
-            });
-            queueExportSearchWithTemplate({
+            await queueTemplateSearchExport({
                 templateName,
                 templateType,
-                jsonQuery: '{}',
+                fallbackJSONQuery: '{}',
                 reportIDList: [moneyRequestReport.reportID],
                 transactionIDList,
                 policyID,
             });
         },
-        [isOffline, moneyRequestReport, showExportProgressModal, clearSelectedTransactions],
+        [moneyRequestReport, queueTemplateSearchExport],
+    );
+    const beginQueuedBasicExport = useCallback(
+        async (transactionIDList: string[]) => {
+            const currentQueryForExport = currentSearchQueryJSON ?? getCurrentSearchQueryJSON();
+            const exportQuery = currentSearchResults?.search.status ?? currentQueryForExport?.status;
+
+            if (!moneyRequestReport || exportQuery === undefined) {
+                setOfflineModalVisible(true);
+                return;
+            }
+
+            await queueBasicSearchExport({
+                query: exportQuery,
+                queryJSON: currentQueryForExport,
+                reportIDList: [moneyRequestReport.reportID],
+                transactionIDList,
+            });
+        },
+        [currentSearchQueryJSON, currentSearchResults?.search.status, moneyRequestReport, queueBasicSearchExport],
     );
 
-    const isOnSearch = route.name.toLowerCase().startsWith('search');
     const {
         options: originalSelectedTransactionsOptions,
         handleDeleteTransactions,
@@ -585,8 +589,13 @@ function MoneyReportHeader({reportID: reportIDProp, shouldDisplayBackButton = fa
         session,
         onExportFailed: () => setIsDownloadErrorModalVisible(true),
         onExportOffline: () => setOfflineModalVisible(true),
+        beginQueuedBasicExport: (transactionIDList) => {
+            beginQueuedBasicExport(transactionIDList);
+        },
         policy,
-        beginExportWithTemplate: (templateName, templateType, transactionIDList, policyID) => beginExportWithTemplate(templateName, templateType, transactionIDList, policyID),
+        beginExportWithTemplate: (templateName, templateType, transactionIDList, policyID) => {
+            beginExportWithTemplate(templateName, templateType, transactionIDList, policyID);
+        },
         isOnSearch,
     });
 
@@ -1152,7 +1161,7 @@ function MoneyReportHeader({reportID: reportIDProp, shouldDisplayBackButton = fa
                         return;
                     }
                     if (isOffline) {
-                        setOfflineModalVisible(true);
+                        beginQueuedBasicExport(transactionIDs);
                         return;
                     }
                     exportReportToCSV(
@@ -1219,7 +1228,9 @@ function MoneyReportHeader({reportID: reportIDProp, shouldDisplayBackButton = fa
                 value: template.templateName,
                 description: template.description,
                 sentryLabel: CONST.SENTRY_LABEL.MORE_MENU.EXPORT_FILE,
-                onSelected: () => beginExportWithTemplate(template.templateName, template.type, transactionIDs, template.policyID),
+                onSelected: () => {
+                    beginExportWithTemplate(template.templateName, template.type, transactionIDs, template.policyID);
+                },
             };
         }
 
@@ -1236,6 +1247,8 @@ function MoneyReportHeader({reportID: reportIDProp, shouldDisplayBackButton = fa
         isExported,
         exportTemplates,
         beginExportWithTemplate,
+        beginQueuedBasicExport,
+        isOnSearch,
     ]);
 
     const primaryActionComponent = (

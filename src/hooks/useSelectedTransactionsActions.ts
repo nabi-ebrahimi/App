@@ -60,6 +60,7 @@ function useSelectedTransactionsActions({
     session,
     onExportFailed,
     onExportOffline,
+    beginQueuedBasicExport,
     policy,
     beginExportWithTemplate,
     isOnSearch,
@@ -71,6 +72,7 @@ function useSelectedTransactionsActions({
     session?: Session;
     onExportFailed?: () => void;
     onExportOffline?: () => void;
+    beginQueuedBasicExport?: (transactionIDList: string[]) => void;
     policy?: Policy;
     beginExportWithTemplate: (templateName: string, templateType: string, transactionIDList: string[], policyID?: string) => void;
     isOnSearch?: boolean;
@@ -318,8 +320,13 @@ function useSelectedTransactionsActions({
                             return;
                         }
                         if (isOffline) {
-                            onExportOffline?.();
+                        if (beginQueuedBasicExport) {
+                            beginQueuedBasicExport(selectedTransactionIDs);
                             return;
+                        }
+                        
+                        onExportOffline?.();
+                        return;
                         }
                         exportReportToCSV(
                             {reportID: report.reportID, transactionIDList: selectedTransactionIDs},
