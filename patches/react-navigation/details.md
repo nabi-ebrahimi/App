@@ -47,6 +47,14 @@
 - PR Introducing Patch: [#24165](https://github.com/Expensify/App/pull/24165)
 - PR Updating Patch: [#32087](https://github.com/Expensify/App/pull/32087) [#42465](https://github.com/Expensify/App/pull/42465) [#64155](https://github.com/Expensify/App/pull/64155)
 
+### [@react-navigation+native+7.1.33+003+prevent-browser-back-reset-before-discard-confirmation.patch](@react-navigation+native+7.1.33+003+prevent-browser-back-reset-before-discard-confirmation.patch)
+
+- Reason: Prevent browser back on web from calling `resetRoot()` before discard-confirmation logic can block navigation and preserve unsaved state.
+- Upstream PR/issue: N/A
+- E/App issue: [#80479](https://github.com/Expensify/App/issues/80479)
+- PR Introducing Patch: N/A
+- PR Updating Patch: N/A
+
 ### [@react-navigation+stack+7.8.5+001+edge-drag-gesture.patch](@react-navigation+stack+7.8.5+001+edge-drag-gesture.patch)
 
 - Reason: Adds `edgeDragGestureMonitor` implementation
