@@ -5,7 +5,9 @@ import {
     convertApprovalWorkflowToPolicyEmployees,
     convertPolicyEmployeesToApprovalWorkflows,
     getApprovalLimitDescription,
+    getApprovalWorkflowEligibleEmployeeList,
     getOpenConnectedToPolicyBusinessBankAccounts,
+    isApprovalWorkflowEligiblePolicyEmployee,
     mergeWorkflowMembersWithAvailableMembers,
     updateWorkflowDataOnApproverRemoval,
 } from '@src/libs/WorkflowUtils';
@@ -541,6 +543,72 @@ describe('WorkflowUtils', () => {
             expect(approvalWorkflows.at(0)?.members).toHaveLength(1);
             const memberEmails = availableMembers.map((m) => m.email).sort();
             expect(memberEmails).toEqual(['alice@example.com', 'bob@example.com']);
+        });
+
+        it('Should exclude pending delete members from both availableMembers and workflow members', () => {
+            const employees: PolicyEmployeeList = {
+                'owner@example.com': {
+                    email: 'owner@example.com',
+                    submitsTo: 'owner@example.com',
+                },
+                'active@example.com': {
+                    email: 'active@example.com',
+                    submitsTo: 'owner@example.com',
+                },
+                'deleted@example.com': {
+                    email: 'deleted@example.com',
+                    submitsTo: 'owner@example.com',
+                    pendingAction: CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE,
+                },
+            };
+            const policy = createMockPolicy(employees, 'owner@example.com');
+            const personalDetailsForTest: PersonalDetailsList = {
+                'owner@example.com': {accountID: 1, login: 'owner@example.com', displayName: 'Owner'},
+                'active@example.com': {accountID: 2, login: 'active@example.com', displayName: 'Active'},
+                'deleted@example.com': {accountID: 3, login: 'deleted@example.com', displayName: 'Deleted'},
+            };
+
+            const {approvalWorkflows, availableMembers} = convertPolicyEmployeesToApprovalWorkflows({
+                policy,
+                personalDetails: personalDetailsForTest,
+                localeCompare,
+            });
+
+            expect(availableMembers.map((member) => member.email).sort()).toEqual(['active@example.com', 'owner@example.com']);
+            expect(approvalWorkflows).toHaveLength(1);
+            expect(
+                approvalWorkflows
+                    .at(0)
+                    ?.members.map((member) => member.email)
+                    .sort(),
+            ).toEqual(['active@example.com', 'owner@example.com']);
+        });
+    });
+
+    describe('approval workflow eligible employees', () => {
+        it('Should only keep employees with email that are not pending delete', () => {
+            const employeeList: PolicyEmployeeList = {
+                'active@example.com': {
+                    email: 'active@example.com',
+                },
+                'deleted@example.com': {
+                    email: 'deleted@example.com',
+                    pendingAction: CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE,
+                },
+                'missing-email@example.com': {
+                    forwardsTo: 'active@example.com',
+                },
+            };
+
+            expect(getApprovalWorkflowEligibleEmployeeList(employeeList)).toEqual({
+                'active@example.com': {
+                    email: 'active@example.com',
+                },
+            });
+            expect(isApprovalWorkflowEligiblePolicyEmployee(employeeList['active@example.com'])).toBe(true);
+            expect(isApprovalWorkflowEligiblePolicyEmployee(employeeList['deleted@example.com'])).toBe(false);
+            expect(isApprovalWorkflowEligiblePolicyEmployee(employeeList['missing-email@example.com'])).toBe(false);
+            expect(isApprovalWorkflowEligiblePolicyEmployee(undefined)).toBe(false);
         });
     });
 

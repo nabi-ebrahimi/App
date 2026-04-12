@@ -13,6 +13,7 @@ import Navigation from '@libs/Navigation/Navigation';
 import type {PlatformStackScreenProps} from '@libs/Navigation/PlatformStackNavigation/types';
 import type {WorkspaceSplitNavigatorParamList} from '@libs/Navigation/types';
 import {getDefaultApprover, getMemberAccountIDsForWorkspace} from '@libs/PolicyUtils';
+import {getApprovalWorkflowEligibleEmployeeList} from '@libs/WorkflowUtils';
 import AccessOrNotFoundWrapper from '@pages/workspace/AccessOrNotFoundWrapper';
 import MemberRightIcon from '@pages/workspace/MemberRightIcon';
 import withPolicyAndFullscreenLoading from '@pages/workspace/withPolicyAndFullscreenLoading';
@@ -58,8 +59,10 @@ function WorkspaceWorkflowsApprovalsApproverPage({policy, personalDetails, isLoa
         }
 
         const membersEmail = approvalWorkflow?.members?.map((member) => member.email);
+        const eligibleEmployees = getApprovalWorkflowEligibleEmployeeList(employeeList);
+        const policyMemberEmailsToAccountIDs = getMemberAccountIDsForWorkspace(eligibleEmployees);
 
-        return Object.values(employeeList)
+        return Object.values(eligibleEmployees)
             .map((employee): SelectionListApprover | null => {
                 const email = employee.email;
 
@@ -82,7 +85,6 @@ function WorkspaceWorkflowsApprovalsApproverPage({policy, personalDetails, isLoa
                     return null;
                 }
 
-                const policyMemberEmailsToAccountIDs = getMemberAccountIDsForWorkspace(employeeList);
                 const accountID = Number(policyMemberEmailsToAccountIDs[email] ?? '');
 
                 if (!accountID) {
@@ -155,7 +157,7 @@ function WorkspaceWorkflowsApprovalsApproverPage({policy, personalDetails, isLoa
             }
 
             const newSelectedEmail = approver?.login ?? '';
-            const policyMemberEmailsToAccountIDs = getMemberAccountIDsForWorkspace(employeeList);
+            const policyMemberEmailsToAccountIDs = getMemberAccountIDsForWorkspace(getApprovalWorkflowEligibleEmployeeList(employeeList));
             const accountID = Number(newSelectedEmail ? policyMemberEmailsToAccountIDs[newSelectedEmail] : '');
             const {avatar, displayName = newSelectedEmail} = personalDetails?.[accountID] ?? {};
 

@@ -11,6 +11,7 @@ import Navigation from '@libs/Navigation/Navigation';
 import type {PlatformStackScreenProps} from '@libs/Navigation/PlatformStackNavigation/types';
 import type {WorkspaceSplitNavigatorParamList} from '@libs/Navigation/types';
 import {getMemberAccountIDsForWorkspace} from '@libs/PolicyUtils';
+import {getApprovalWorkflowEligibleEmployeeList} from '@libs/WorkflowUtils';
 import AccessOrNotFoundWrapper from '@pages/workspace/AccessOrNotFoundWrapper';
 import MemberRightIcon from '@pages/workspace/MemberRightIcon';
 import withPolicyAndFullscreenLoading from '@pages/workspace/withPolicyAndFullscreenLoading';
@@ -48,9 +49,10 @@ function WorkspaceWorkflowsApprovalsOverLimitApproverPage({policy, personalDetai
             return [];
         }
 
-        const policyMemberEmailsToAccountIDs = getMemberAccountIDsForWorkspace(employeeList);
+        const eligibleEmployees = getApprovalWorkflowEligibleEmployeeList(employeeList);
+        const policyMemberEmailsToAccountIDs = getMemberAccountIDsForWorkspace(eligibleEmployees);
 
-        return Object.values(employeeList)
+        return Object.values(eligibleEmployees)
             .map((employee): SelectionListApprover | null => {
                 const email = employee.email;
 

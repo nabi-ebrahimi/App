@@ -116,6 +116,14 @@ type PolicyConversionResult = {
     usedApproverEmails: string[];
 };
 
+function isApprovalWorkflowEligiblePolicyEmployee(employee: PolicyEmployee | undefined): employee is PolicyEmployee {
+    return !!employee?.email && employee.pendingAction !== CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE;
+}
+
+function getApprovalWorkflowEligibleEmployeeList(employeeList: PolicyEmployeeList | undefined): PolicyEmployeeList {
+    return Object.fromEntries(Object.entries(employeeList ?? {}).filter(([, employee]) => isApprovalWorkflowEligiblePolicyEmployee(employee)));
+}
+
 /** Convert a list of policy employees to a list of approval workflows */
 function convertPolicyEmployeesToApprovalWorkflows({policy, personalDetails, firstApprover, localeCompare}: PolicyConversionParams): PolicyConversionResult {
     const employees = policy?.employeeList ?? {};
@@ -135,7 +143,7 @@ function convertPolicyEmployeesToApprovalWorkflows({policy, personalDetails, fir
 
         const member = buildMemberFromEmployee(employee, personalDetailsByEmail, email);
 
-        if (pendingAction !== CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE) {
+        if (isApprovalWorkflowEligiblePolicyEmployee(employee)) {
             availableMembers.push(member);
         }
 
@@ -164,7 +172,9 @@ function convertPolicyEmployeesToApprovalWorkflows({policy, personalDetails, fir
             };
         }
 
-        approvalWorkflows[submitsTo].members.push(member);
+        if (isApprovalWorkflowEligiblePolicyEmployee(employee)) {
+            approvalWorkflows[submitsTo].members.push(member);
+        }
         // Only propagate ADD/UPDATE pending actions to the workflow, not DELETE
         // When a member is being deleted from the workspace, their DELETE pending action
         // should not affect the workflow's display state (e.g., strikethrough styling)
@@ -587,10 +597,12 @@ export {
     calculateApprovers,
     convertPolicyEmployeesToApprovalWorkflows,
     convertApprovalWorkflowToPolicyEmployees,
+    getApprovalWorkflowEligibleEmployeeList,
     getApprovalLimitDescription,
     getEligibleExistingBusinessBankAccounts,
     getOpenConnectedToPolicyBusinessBankAccounts,
     INITIAL_APPROVAL_WORKFLOW,
+    isApprovalWorkflowEligiblePolicyEmployee,
     mergeWorkflowMembersWithAvailableMembers,
     updateWorkflowDataOnApproverRemoval,
 };
