@@ -33,7 +33,7 @@ import Log from '@libs/Log';
 import enhanceParameters from '@libs/Network/enhanceParameters';
 import {hasEnabledOptions} from '@libs/OptionsListUtils';
 import {goBackWhenEnableFeature} from '@libs/PolicyUtils';
-import {pushTransactionViolationsOnyxData} from '@libs/ReportUtils';
+import {isOnboardingTaskForWorkspace, pushTransactionViolationsOnyxData} from '@libs/ReportUtils';
 import {getFinishOnboardingTaskOnyxData} from '@userActions/Task';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
@@ -80,6 +80,7 @@ function appendSetupCategoriesOnboardingData(
     onyxData: OnyxData<
         typeof ONYXKEYS.COLLECTION.POLICY_CATEGORIES | typeof ONYXKEYS.COLLECTION.POLICY_CATEGORIES_DRAFT | typeof ONYXKEYS.COLLECTION.REPORT | typeof ONYXKEYS.COLLECTION.REPORT_ACTIONS
     >,
+    policyID: string | undefined,
     setupCategoryTaskReport: OnyxEntry<Report>,
     setupCategoryTaskParentReport: OnyxEntry<Report>,
     isSetupCategoriesTaskParentReportArchived: boolean,
@@ -87,6 +88,10 @@ function appendSetupCategoriesOnboardingData(
     hasOutstandingChildTask: boolean,
     parentReportAction: OnyxEntry<ReportAction> | undefined,
 ) {
+    if (!isOnboardingTaskForWorkspace(setupCategoryTaskReport, setupCategoryTaskParentReport, policyID)) {
+        return onyxData;
+    }
+
     const finishOnboardingTaskData = getFinishOnboardingTaskOnyxData(
         setupCategoryTaskReport,
         setupCategoryTaskParentReport,
@@ -451,6 +456,7 @@ function setWorkspaceCategoryEnabled({
     pushTransactionViolationsOnyxData(onyxData, policyData, {}, policyCategoriesOptimisticData);
     appendSetupCategoriesOnboardingData(
         onyxData,
+        policyID,
         setupCategoryTaskReport,
         setupCategoryTaskParentReport,
         isSetupCategoriesTaskParentReportArchived,
@@ -462,6 +468,7 @@ function setWorkspaceCategoryEnabled({
     if (setupCategoriesAndTagsTaskReport && policyHasTags) {
         appendSetupCategoriesOnboardingData(
             onyxData,
+            policyID,
             setupCategoriesAndTagsTaskReport,
             setupCategoriesAndTagsTaskParentReport,
             isSetupCategoriesAndTagsTaskParentReportArchived ?? false,
@@ -891,6 +898,7 @@ function createPolicyCategory({
     const onyxData = buildOptimisticPolicyCategories(policyID, [categoryName]);
     appendSetupCategoriesOnboardingData(
         onyxData,
+        policyID,
         setupCategoryTaskReport,
         setupCategoryTaskParentReport,
         isSetupCategoriesTaskParentReportArchived,
@@ -902,6 +910,7 @@ function createPolicyCategory({
     if (setupCategoriesAndTagsTaskReport && policyHasTags) {
         appendSetupCategoriesOnboardingData(
             onyxData,
+            policyID,
             setupCategoriesAndTagsTaskReport,
             setupCategoriesAndTagsTaskParentReport,
             isSetupCategoriesAndTagsTaskParentReportArchived ?? false,
@@ -1387,6 +1396,7 @@ function deleteWorkspaceCategories(
     pushTransactionViolationsOnyxData(onyxData, policyData, optimisticPolicyData, optimisticPolicyCategoriesData);
     appendSetupCategoriesOnboardingData(
         onyxData,
+        policyID,
         setupCategoryTaskReport,
         setupCategoryTaskParentReport,
         isSetupCategoriesTaskParentReportArchived,

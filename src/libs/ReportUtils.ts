@@ -1945,6 +1945,26 @@ function doesReportBelongToWorkspace(report: OnyxEntry<Report>, policyMemberAcco
     );
 }
 
+function isOnboardingTaskForWorkspace(taskReport: OnyxEntry<Report>, taskParentReport: OnyxEntry<Report>, policyID: string | undefined) {
+    if (!taskReport || !policyID) {
+        return false;
+    }
+
+    if (isPolicyRelatedReport(taskReport, policyID)) {
+        return true;
+    }
+
+    if (taskReport.policyID && taskReport.policyID !== CONST.POLICY.ID_FAKE) {
+        return false;
+    }
+
+    if (!taskParentReport) {
+        return false;
+    }
+
+    return isConciergeChatReport(taskParentReport) || isPolicyRelatedReport(taskParentReport, policyID);
+}
+
 /**
  * Checks if a report is a self-DM or belongs to a self-DM context
  * (including moved reports and threads within self-DMs)
@@ -13523,6 +13543,7 @@ export {
     chatIncludesConcierge,
     createDraftTransactionAndNavigateToParticipantSelector,
     doesReportBelongToWorkspace,
+    isOnboardingTaskForWorkspace,
     shouldEnableNegative,
     findLastAccessedReport,
     findSelfDMReportID,

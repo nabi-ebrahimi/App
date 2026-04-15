@@ -26,7 +26,7 @@ import Log from '@libs/Log';
 import enhanceParameters from '@libs/Network/enhanceParameters';
 import * as PolicyUtils from '@libs/PolicyUtils';
 import {goBackWhenEnableFeature} from '@libs/PolicyUtils';
-import {pushTransactionViolationsOnyxData} from '@libs/ReportUtils';
+import {isOnboardingTaskForWorkspace, pushTransactionViolationsOnyxData} from '@libs/ReportUtils';
 import {getTagArrayFromName} from '@libs/TransactionUtils';
 import type {PolicyTagList} from '@pages/workspace/tags/types';
 import {getFinishOnboardingTaskOnyxData} from '@userActions/Task';
@@ -213,10 +213,8 @@ function createPolicyTag({
 
     API.write(WRITE_COMMANDS.CREATE_POLICY_TAG, parameters, onyxData);
 
-    const isTaskForCurrentWorkspace = (taskReport: OnyxEntry<Report>) => !taskReport?.policyID || taskReport.policyID === policyID;
-
     // Complete the "Set up tags" onboarding task
-    if (setupTagsTaskReport && currentUserAccountID && isTaskForCurrentWorkspace(setupTagsTaskReport)) {
+    if (setupTagsTaskReport && currentUserAccountID && isOnboardingTaskForWorkspace(setupTagsTaskReport, setupTagsTaskParentReport, policyID)) {
         getFinishOnboardingTaskOnyxData(
             setupTagsTaskReport,
             setupTagsTaskParentReport,
@@ -230,7 +228,12 @@ function createPolicyTag({
     }
 
     // Complete the combined "Set up categories and tags" task only if categories already exist
-    if (setupCategoriesAndTagsTaskReport && policyHasCustomCategories && currentUserAccountID && isTaskForCurrentWorkspace(setupCategoriesAndTagsTaskReport)) {
+    if (
+        setupCategoriesAndTagsTaskReport &&
+        policyHasCustomCategories &&
+        currentUserAccountID &&
+        isOnboardingTaskForWorkspace(setupCategoriesAndTagsTaskReport, setupCategoriesAndTagsTaskParentReport, policyID)
+    ) {
         getFinishOnboardingTaskOnyxData(
             setupCategoriesAndTagsTaskReport,
             setupCategoriesAndTagsTaskParentReport,

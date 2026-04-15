@@ -2531,5 +2531,117 @@ describe('actions/Policy', () => {
             await mockFetch?.resume?.();
             await waitForBatchedUpdates();
         });
+
+        it('should complete onboarding task with _FAKE_ policyID when parent report belongs to current workspace', async () => {
+            const fakePolicy = createRandomPolicy(0);
+            const fakeTags = createRandomPolicyTags('TestTagList', 2);
+            const newTagName = 'New onboarding tag';
+
+            const fakeTaskReportID = '678901';
+            const fakeTaskReport = {
+                reportID: fakeTaskReportID,
+                type: CONST.REPORT.TYPE.TASK,
+                stateNum: CONST.REPORT.STATE_NUM.OPEN,
+                statusNum: CONST.REPORT.STATUS_NUM.OPEN,
+                ownerAccountID: FAKE_ACCOUNT_ID,
+                parentReportID: FAKE_PARENT_REPORT_ID,
+                policyID: CONST.POLICY.ID_FAKE,
+            };
+
+            const fakeWorkspaceParentReport = {
+                ...fakeParentReport,
+                policyID: fakePolicy.id,
+            };
+
+            mockFetch?.pause?.();
+            await Onyx.set(`${ONYXKEYS.COLLECTION.POLICY}${fakePolicy.id}`, fakePolicy);
+            await Onyx.set(`${ONYXKEYS.COLLECTION.POLICY_TAGS}${fakePolicy.id}`, fakeTags);
+            await Onyx.set(`${ONYXKEYS.COLLECTION.REPORT}${fakeTaskReportID}`, fakeTaskReport);
+            await Onyx.set(`${ONYXKEYS.COLLECTION.REPORT}${FAKE_PARENT_REPORT_ID}`, fakeWorkspaceParentReport);
+
+            const {result: policyData} = renderHook(() => usePolicyData(fakePolicy.id), {wrapper: OnyxListItemProvider});
+
+            createPolicyTag({
+                policyData: policyData.current,
+                tagName: newTagName,
+                setupTagsTaskReport: fakeTaskReport,
+                setupTagsTaskParentReport: fakeWorkspaceParentReport,
+                isSetupTagsTaskParentReportArchived: false,
+                setupTagsHasOutstandingChildTask: false,
+                setupTagsParentReportAction: undefined,
+                setupCategoriesAndTagsTaskReport: fakeTaskReport,
+                setupCategoriesAndTagsTaskParentReport: fakeWorkspaceParentReport,
+                isSetupCategoriesAndTagsTaskParentReportArchived: false,
+                setupCategoriesAndTagsHasOutstandingChildTask: false,
+                setupCategoriesAndTagsParentReportAction: undefined,
+                currentUserAccountID: FAKE_ACCOUNT_ID,
+                policyHasCustomCategories: true,
+            });
+
+            await waitForBatchedUpdates();
+
+            const taskReport = await OnyxUtils.get(`${ONYXKEYS.COLLECTION.REPORT}${fakeTaskReportID}`);
+            expect(taskReport?.stateNum).toBe(CONST.REPORT.STATE_NUM.APPROVED);
+            expect(taskReport?.statusNum).toBe(CONST.REPORT.STATUS_NUM.APPROVED);
+
+            await mockFetch?.resume?.();
+            await waitForBatchedUpdates();
+        });
+
+        it('should NOT complete _FAKE_ onboarding task when parent report belongs to a different workspace', async () => {
+            const fakePolicy = createRandomPolicy(0);
+            const fakeTags = createRandomPolicyTags('TestTagList', 2);
+            const newTagName = 'New onboarding tag in wrong workspace';
+
+            const fakeTaskReportID = '678902';
+            const fakeTaskReport = {
+                reportID: fakeTaskReportID,
+                type: CONST.REPORT.TYPE.TASK,
+                stateNum: CONST.REPORT.STATE_NUM.OPEN,
+                statusNum: CONST.REPORT.STATUS_NUM.OPEN,
+                ownerAccountID: FAKE_ACCOUNT_ID,
+                parentReportID: FAKE_PARENT_REPORT_ID,
+                policyID: CONST.POLICY.ID_FAKE,
+            };
+
+            const fakeDifferentWorkspaceParentReport = {
+                ...fakeParentReport,
+                policyID: 'different-policy-id',
+            };
+
+            mockFetch?.pause?.();
+            await Onyx.set(`${ONYXKEYS.COLLECTION.POLICY}${fakePolicy.id}`, fakePolicy);
+            await Onyx.set(`${ONYXKEYS.COLLECTION.POLICY_TAGS}${fakePolicy.id}`, fakeTags);
+            await Onyx.set(`${ONYXKEYS.COLLECTION.REPORT}${fakeTaskReportID}`, fakeTaskReport);
+            await Onyx.set(`${ONYXKEYS.COLLECTION.REPORT}${FAKE_PARENT_REPORT_ID}`, fakeDifferentWorkspaceParentReport);
+
+            const {result: policyData} = renderHook(() => usePolicyData(fakePolicy.id), {wrapper: OnyxListItemProvider});
+
+            createPolicyTag({
+                policyData: policyData.current,
+                tagName: newTagName,
+                setupTagsTaskReport: fakeTaskReport,
+                setupTagsTaskParentReport: fakeDifferentWorkspaceParentReport,
+                isSetupTagsTaskParentReportArchived: false,
+                setupTagsHasOutstandingChildTask: false,
+                setupTagsParentReportAction: undefined,
+                setupCategoriesAndTagsTaskReport: fakeTaskReport,
+                setupCategoriesAndTagsTaskParentReport: fakeDifferentWorkspaceParentReport,
+                isSetupCategoriesAndTagsTaskParentReportArchived: false,
+                setupCategoriesAndTagsHasOutstandingChildTask: false,
+                setupCategoriesAndTagsParentReportAction: undefined,
+                currentUserAccountID: FAKE_ACCOUNT_ID,
+                policyHasCustomCategories: true,
+            });
+
+            await waitForBatchedUpdates();
+
+            const taskReport = await OnyxUtils.get(`${ONYXKEYS.COLLECTION.REPORT}${fakeTaskReportID}`);
+            expect(taskReport?.stateNum).toBe(CONST.REPORT.STATE_NUM.OPEN);
+            expect(taskReport?.statusNum).toBe(CONST.REPORT.STATUS_NUM.OPEN);
+
+            await mockFetch?.resume?.();
+            await waitForBatchedUpdates();
+        });
     });
 });
