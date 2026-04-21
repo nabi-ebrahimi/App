@@ -56,7 +56,7 @@ function EmojiPickerButton({isDisabled = false, emojiPickerID = '', shiftVertica
                 showEmojiPicker({
                     onModalHide,
                     onEmojiSelected,
-                    emojiPopoverAnchor,
+                    getEmojiPopoverAnchor: () => emojiPopoverAnchor,
                     anchorOrigin: {
                         horizontal: CONST.MODAL.ANCHOR_ORIGIN_HORIZONTAL.RIGHT,
                         vertical: CONST.MODAL.ANCHOR_ORIGIN_VERTICAL.BOTTOM,
@@ -66,6 +66,7 @@ function EmojiPickerButton({isDisabled = false, emojiPickerID = '', shiftVertica
                 });
             });
         } else {
+            console.log('hideEmojiPicker caller: EmojiPickerButton.openEmojiPicker');
             emojiPickerRef.current.hideEmojiPicker();
         }
         onPress?.(e);

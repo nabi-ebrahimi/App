@@ -67,7 +67,7 @@ function AddReactionBubble({onSelectEmoji, reportAction, onPressOpenPicker, onWi
                 onEmojiSelected: (emojiCode, emojiObject, preferredSkinTone) => {
                     onSelectEmoji(emojiObject, preferredSkinTone);
                 },
-                emojiPopoverAnchor: refParam ?? ref,
+                getEmojiPopoverAnchor: () => refParam ?? ref,
                 anchorOrigin,
                 onWillShow: onWillShowPicker,
                 id: reportAction.reportActionID,
@@ -84,6 +84,7 @@ function AddReactionBubble({onSelectEmoji, reportAction, onPressOpenPicker, onWi
             }
         } else {
             setIsEmojiPickerActive?.(false);
+            console.log('hideEmojiPicker caller: AddReactionBubble.onPress');
             emojiPickerRef.current.hideEmojiPicker();
         }
     };

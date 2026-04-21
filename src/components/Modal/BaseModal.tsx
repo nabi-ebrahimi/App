@@ -32,6 +32,7 @@ function BaseModal({
     onClose,
     shouldSetModalVisibility = true,
     onModalHide = () => {},
+    shouldCallHideModalOnUnmount: shouldCallHideModalOnUnmountProp = true,
     type,
     popoverAnchorPosition = {},
     innerContainerStyle = {},
@@ -119,6 +120,7 @@ function BaseModal({
                 }
             }
             if (callHideCallback) {
+                console.log("Calling onModalHide callback in basemodal ");
                 onModalHide();
             }
             onModalDidClose();
@@ -161,7 +163,7 @@ function BaseModal({
 
     useEffect(
         () => () => {
-            if (!shouldCallHideModalOnUnmount.current) {
+            if (!shouldCallHideModalOnUnmount.current || !shouldCallHideModalOnUnmountProp) {
                 return;
             }
             hideModalCallbackRef.current?.(true);

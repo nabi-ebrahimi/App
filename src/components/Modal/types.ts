@@ -40,6 +40,9 @@ type BaseModalProps = Partial<ReanimatedModalProps> &
         /** Callback method fired when the modal is hidden */
         onModalHide?: () => void;
 
+        /** Whether BaseModal should call onModalHide when it unmounts while still visible */
+        shouldCallHideModalOnUnmount?: boolean;
+
         /** Callback method fired when the modal is shown */
         onModalShow?: () => void;
 

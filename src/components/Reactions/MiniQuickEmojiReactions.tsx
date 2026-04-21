@@ -57,7 +57,7 @@ function MiniQuickEmojiReactions({reportAction, reportActionID, onEmojiSelected,
             onEmojiSelected: (_emojiCode, emojiObject, skinTone) => {
                 selectEmojiWithReaction(emojiObject, skinTone);
             },
-            emojiPopoverAnchor: ref,
+            getEmojiPopoverAnchor: () => ref,
             id: reportAction.reportActionID,
         });
     };
@@ -86,6 +86,7 @@ function MiniQuickEmojiReactions({reportAction, reportActionID, onEmojiSelected,
                     if (!emojiPickerRef.current?.isEmojiPickerVisible) {
                         openEmojiPicker();
                     } else {
+                        console.log('hideEmojiPicker caller: MiniQuickEmojiReactions.BaseMiniContextMenuItem.onPress');
                         emojiPickerRef.current?.hideEmojiPicker();
                     }
                 })}

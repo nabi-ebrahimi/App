@@ -543,6 +543,7 @@ function PureReportActionItem({
                 hideDeleteModal();
             }
             if (isActive(action.reportActionID)) {
+                console.log('hideEmojiPicker caller: PureReportActionItem.useEffect.cleanup');
                 hideEmojiPicker(true);
             }
             if (reactionListRef?.current?.isActiveReportAction(action.reportActionID)) {
@@ -558,6 +559,7 @@ function PureReportActionItem({
             return;
         }
 
+        console.log('hideEmojiPicker caller: PureReportActionItem.useEffect.deletedParentAction');
         hideEmojiPicker(true);
     }, [isDeletedParentAction, action.reportActionID]);
 

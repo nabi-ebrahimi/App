@@ -46,6 +46,7 @@ function Modal({fullscreen = true, onModalHide = () => {}, type, onModalShow = (
     const hideModal = () => {
         window.removeEventListener('popstate', handlePopState);
         if ((window.history.state as WindowState)?.shouldGoBack && shouldHandleNavigationBack) {
+            console.log("Hiding emoji picker from modal hide with navigation back");
             onModalHide();
             // Defer history.back() so it runs after any pending navigation
             // callbacks (from onModalDidClose) have pushed their history entries.
@@ -58,6 +59,7 @@ function Modal({fullscreen = true, onModalHide = () => {}, type, onModalShow = (
                 window.history.back();
             }, 0);
         } else {
+            console.log("Hiding emoji picker from modal hide with navigation back else branch");
             onModalHide();
         }
     };

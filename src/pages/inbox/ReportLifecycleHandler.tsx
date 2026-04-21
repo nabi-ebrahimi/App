@@ -38,6 +38,7 @@ function ReportLifecycleHandler({reportID}: ReportLifecycleHandlerProps) {
         if (!prevIsFocused || isFocused) {
             return;
         }
+        console.log('hideEmojiPicker caller: ReportLifecycleHandler.useEffect.focusLoss');
         hideEmojiPicker(true);
     }, [prevIsFocused, isFocused]);
 

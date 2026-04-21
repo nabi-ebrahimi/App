@@ -45,6 +45,7 @@ function EmojiPickerButtonDropdown(
     useEffect(() => resetEmojiPopoverAnchor, []);
     const onPress = () => {
         if (isEmojiPickerVisible()) {
+            console.log('hideEmojiPicker caller: EmojiPickerButtonDropdown.onPress');
             hideEmojiPicker();
             return;
         }
@@ -52,7 +53,7 @@ function EmojiPickerButtonDropdown(
             showEmojiPicker({
                 onModalHide,
                 onEmojiSelected: (emoji) => onInputChange(emoji),
-                emojiPopoverAnchor,
+                getEmojiPopoverAnchor: () => emojiPopoverAnchor,
                 anchorOrigin: {
                     horizontal: CONST.MODAL.ANCHOR_ORIGIN_HORIZONTAL.LEFT,
                     vertical: CONST.MODAL.ANCHOR_ORIGIN_VERTICAL.TOP,
