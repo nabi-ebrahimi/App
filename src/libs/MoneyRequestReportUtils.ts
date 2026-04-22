@@ -20,6 +20,15 @@ import {
 } from './ReportUtils';
 import {getReimbursable, isTransactionPendingDelete} from './TransactionUtils';
 
+type HoldMenuDisplayState = {
+    nonHeldAmount: string;
+    fullAmount: string;
+    hasValidNonHeldAmount: boolean;
+    hasHeldExpenses: boolean;
+    hasOnlyHeldExpenses: boolean;
+    transactionCount: number;
+};
+
 function isBillableEnabledOnPolicy(policy: Policy | OnyxEntry<Policy> | undefined): boolean {
     return !!policy && isPaidGroupPolicy(policy) && policy.disabledFields?.defaultBillable !== true;
 }
@@ -145,6 +154,22 @@ function shouldWaitForTransactions(report: OnyxEntry<Report>, transactions: Tran
     );
 }
 
+function getHoldMenuDisplayState(report: OnyxEntry<Report>, transactions: Transaction[], requestType: ValueOf<typeof CONST.IOU.REPORT_ACTION_TYPE>): HoldMenuDisplayState {
+    const shouldExcludeNonReimbursables = requestType === CONST.IOU.REPORT_ACTION_TYPE.PAY;
+    const {nonHeldAmount, fullAmount, hasValidNonHeldAmount} = getNonHeldAndFullAmount(report, shouldExcludeNonReimbursables, transactions);
+    const hasHeldExpenses = hasHeldExpensesReportUtils(report?.reportID, transactions);
+    const hasOnlyHeldExpenses = hasOnlyHeldExpensesReportUtils(report?.reportID, transactions);
+
+    return {
+        nonHeldAmount,
+        fullAmount,
+        hasValidNonHeldAmount,
+        hasHeldExpenses,
+        hasOnlyHeldExpenses,
+        transactionCount: transactions.length,
+    };
+}
+
 /**
  * Determines the total amount to be displayed based on the selected button type in the IOU Report Preview.
  *
@@ -161,8 +186,11 @@ const getTotalAmountForIOUReportPreviewButton = (
     transactions: Transaction[],
 ) => {
     // Determine whether the non-held amount is appropriate to display for the PAY button.
-    const {nonHeldAmount, hasValidNonHeldAmount} = getNonHeldAndFullAmount(report, reportPreviewAction === CONST.REPORT.REPORT_PREVIEW_ACTIONS.PAY);
-    const hasOnlyHeldExpenses = hasOnlyHeldExpensesReportUtils(report?.reportID);
+    const {nonHeldAmount, hasHeldExpenses, hasOnlyHeldExpenses, hasValidNonHeldAmount} = getHoldMenuDisplayState(
+        report,
+        transactions,
+        reportPreviewAction === CONST.REPORT.REPORT_PREVIEW_ACTIONS.PAY ? CONST.IOU.REPORT_ACTION_TYPE.PAY : CONST.IOU.REPORT_ACTION_TYPE.APPROVE,
+    );
     const canAllowSettlement = hasUpdatedTotal(report, policy);
 
     // Split the total spend into different categories as needed.
@@ -180,7 +208,7 @@ const getTotalAmountForIOUReportPreviewButton = (
         }
 
         // We shouldn't display the nonHeldAmount as the default option if it's not valid since we cannot pay partially in this case
-        if (hasHeldExpensesReportUtils(report?.reportID) && canAllowSettlement && hasValidNonHeldAmount && !hasOnlyHeldExpenses) {
+        if (hasHeldExpenses && canAllowSettlement && hasValidNonHeldAmount && !hasOnlyHeldExpenses) {
             return nonHeldAmount;
         }
 
@@ -202,4 +230,7 @@ export {
     shouldWaitForTransactions,
     isBillableEnabledOnPolicy,
     hasNonReimbursableTransactions,
+    getHoldMenuDisplayState,
 };
+
+export type {HoldMenuDisplayState};

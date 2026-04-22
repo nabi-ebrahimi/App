@@ -182,10 +182,6 @@ function SelectionToolbar({reportID, transactions, reportActions}: SelectionTool
         selectedVBBAToPayFromHoldMenu,
         handleHoldMenuClose,
         handleHoldMenuConfirm,
-        hasOnlyHeldExpenses,
-        nonHeldAmount,
-        fullAmount,
-        hasValidNonHeldAmount,
     } = useSelectionModeReportActions({
         report,
         chatReport,
@@ -344,18 +340,14 @@ function SelectionToolbar({reportID, transactions, reportActions}: SelectionTool
             )}
             {isHoldMenuVisible && requestType !== undefined && (
                 <ProcessMoneyReportHoldMenu
-                    nonHeldAmount={!hasOnlyHeldExpenses && hasValidNonHeldAmount ? nonHeldAmount : undefined}
                     requestType={requestType}
-                    fullAmount={fullAmount}
                     onClose={handleHoldMenuClose}
                     isVisible={isHoldMenuVisible}
                     paymentType={paymentType}
                     methodID={paymentType === CONST.IOU.PAYMENT_TYPE.VBBA ? selectedVBBAToPayFromHoldMenu : undefined}
-                    chatReport={chatReport}
-                    moneyRequestReport={report}
-                    hasNonHeldExpenses={!hasOnlyHeldExpenses}
+                    reportID={report?.reportID}
+                    chatReportID={chatReport?.reportID}
                     onConfirm={handleHoldMenuConfirm}
-                    transactionCount={transactions.length}
                 />
             )}
         </>

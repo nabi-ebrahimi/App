@@ -35,13 +35,11 @@ import {
     areAllRequestsBeingSmartScanned as areAllRequestsBeingSmartScannedReportUtils,
     getDisplayNameForParticipant,
     getMoneyRequestSpendBreakdown,
-    getNonHeldAndFullAmount,
     getPolicyName,
     getReportStatusColorStyle,
     getReportStatusTranslation,
     getTransactionsWithReceipts,
     hasNonReimbursableTransactions as hasNonReimbursableTransactionsReportUtils,
-    hasOnlyHeldExpenses as hasOnlyHeldExpensesReportUtils,
     hasOnlyTransactionsWithPendingRoutes as hasOnlyTransactionsWithPendingRoutesReportUtils,
     isInvoiceRoom as isInvoiceRoomReportUtils,
     isPolicyExpenseChat as isPolicyExpenseChatReportUtils,
@@ -158,14 +156,18 @@ function MoneyRequestReportPreviewContent({
     const [isHoldMenuVisible, setIsHoldMenuVisible] = useState(false);
     const [requestType, setRequestType] = useState<ActionHandledType>();
     const [paymentType, setPaymentType] = useState<PaymentMethodType>();
-    const [shouldShowPayButton, setShouldShowPayButton] = useState(false);
-    const hasOnlyHeldExpenses = hasOnlyHeldExpensesReportUtils(iouReport?.reportID);
+    const [methodID, setMethodID] = useState<number | undefined>();
 
-    const handleHoldMenuOpen = (holdRequestType: string, holdPaymentType?: PaymentMethodType, canPay?: boolean) => {
+    const handleHoldMenuOpen = (holdRequestType: string, holdPaymentType?: PaymentMethodType, holdMethodID?: number) => {
         setRequestType(holdRequestType as ActionHandledType);
         setPaymentType(holdPaymentType);
-        setShouldShowPayButton(!!canPay);
+        setMethodID(holdMethodID);
         setIsHoldMenuVisible(true);
+    };
+
+    const handleHoldMenuClose = () => {
+        setMethodID(undefined);
+        setIsHoldMenuVisible(false);
     };
 
     const managerID = iouReport?.managerID ?? action.childManagerAccountID ?? CONST.DEFAULT_NUMBER_ID;
@@ -729,33 +731,24 @@ function MoneyRequestReportPreviewContent({
                         </View>
                     </PressableWithoutFeedback>
                 </View>
-                {isHoldMenuVisible &&
-                    !!iouReport &&
-                    !!requestType &&
-                    (() => {
-                        const {nonHeldAmount, fullAmount, hasValidNonHeldAmount} = getNonHeldAndFullAmount(iouReport, shouldShowPayButton);
-                        return (
-                            <ProcessMoneyReportHoldMenu
-                                nonHeldAmount={!hasOnlyHeldExpenses && hasValidNonHeldAmount ? nonHeldAmount : undefined}
-                                requestType={requestType}
-                                fullAmount={fullAmount}
-                                onClose={() => setIsHoldMenuVisible(false)}
-                                isVisible={isHoldMenuVisible}
-                                paymentType={paymentType}
-                                chatReport={chatReport}
-                                moneyRequestReport={iouReport}
-                                transactionCount={numberOfRequests}
-                                hasNonHeldExpenses={!hasOnlyHeldExpenses}
-                                onConfirm={() => {
-                                    if (requestType === CONST.IOU.REPORT_ACTION_TYPE.APPROVE) {
-                                        startApprovedAnimation();
-                                    } else {
-                                        startAnimation();
-                                    }
-                                }}
-                            />
-                        );
-                    })()}
+                {isHoldMenuVisible && !!iouReport && !!requestType && (
+                    <ProcessMoneyReportHoldMenu
+                        requestType={requestType}
+                        onClose={handleHoldMenuClose}
+                        isVisible={isHoldMenuVisible}
+                        paymentType={paymentType}
+                        methodID={methodID}
+                        reportID={iouReport.reportID}
+                        chatReportID={chatReport?.reportID}
+                        onConfirm={() => {
+                            if (requestType === CONST.IOU.REPORT_ACTION_TYPE.APPROVE) {
+                                startApprovedAnimation();
+                            } else {
+                                startAnimation();
+                            }
+                        }}
+                    />
+                )}
             </OfflineWithFeedback>
         </View>
     );

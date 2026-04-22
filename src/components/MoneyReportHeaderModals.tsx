@@ -5,11 +5,7 @@ import useDecisionModal from '@hooks/useDecisionModal';
 import useHoldMenuModal from '@hooks/useHoldMenuModal';
 import useLocalize from '@hooks/useLocalize';
 import useOnyx from '@hooks/useOnyx';
-import useTransactionsAndViolationsForReport from '@hooks/useTransactionsAndViolationsForReport';
-import getNonEmptyStringOnyxID from '@libs/getNonEmptyStringOnyxID';
 import getPlatform from '@libs/getPlatform';
-import {getNonHeldAndFullAmount, hasOnlyHeldExpenses as hasOnlyHeldExpensesReportUtils} from '@libs/ReportUtils';
-import {canIOUBePaid as canIOUBePaidAction} from '@userActions/IOU/ReportWorkflow';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
 import MoneyReportHeaderEducationalModals from './MoneyReportHeaderEducationalModals';
@@ -32,20 +28,7 @@ function MoneyReportHeaderModals({reportID, children}: MoneyReportHeaderModalsPr
 
     // Fetch data from IDs
     const [moneyRequestReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`);
-    const [policy] = useOnyx(`${ONYXKEYS.COLLECTION.POLICY}${getNonEmptyStringOnyxID(moneyRequestReport?.policyID)}`);
     const [chatReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${moneyRequestReport?.chatReportID}`);
-    const [bankAccountList] = useOnyx(ONYXKEYS.BANK_ACCOUNT_LIST);
-
-    const {transactions: reportTransactions} = useTransactionsAndViolationsForReport(moneyRequestReport?.reportID);
-    const transactions = Object.values(reportTransactions);
-
-    // Derive data for hold menu
-    const canIOUBePaid = canIOUBePaidAction(moneyRequestReport, chatReport, policy, bankAccountList);
-    const onlyShowPayElsewhere = !canIOUBePaid && canIOUBePaidAction(moneyRequestReport, chatReport, policy, bankAccountList, undefined, true);
-    const shouldShowPayButton = canIOUBePaid || onlyShowPayElsewhere;
-    const {nonHeldAmount, fullAmount, hasValidNonHeldAmount} = getNonHeldAndFullAmount(moneyRequestReport, shouldShowPayButton);
-    const hasOnlyHeldExpenses = hasOnlyHeldExpensesReportUtils(moneyRequestReport?.reportID);
-    const transactionIDs = transactions.map((t) => t.transactionID);
 
     // Imperative modals
     const {showHoldMenu} = useHoldMenuModal();
@@ -76,10 +59,6 @@ function MoneyReportHeaderModals({reportID, children}: MoneyReportHeaderModalsPr
                 requestType,
                 paymentType,
                 methodID,
-                nonHeldAmount: !hasOnlyHeldExpenses && hasValidNonHeldAmount ? nonHeldAmount : undefined,
-                fullAmount,
-                hasNonHeldExpenses: !hasOnlyHeldExpenses,
-                transactionCount: transactionIDs.length,
                 onConfirm,
             });
 

@@ -478,14 +478,6 @@ describe('useSelectionModeReportActions', () => {
 
             expect(result.current.isHoldMenuVisible).toBe(false);
         });
-
-        it('returns hold menu amounts from getNonHeldAndFullAmount', () => {
-            const {result} = renderSelectionModeHook();
-
-            expect(result.current.nonHeldAmount).toBe('$100.00');
-            expect(result.current.fullAmount).toBe('$100.00');
-            expect(result.current.hasValidNonHeldAmount).toBe(true);
-        });
     });
 
     describe('action flags', () => {

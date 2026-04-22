@@ -10922,7 +10922,7 @@ function hasUpdatedTotal(report: OnyxInputOrEntry<Report>, policy: OnyxInputOrEn
 /**
  * Return held and full amount formatted with used currency
  */
-function getNonHeldAndFullAmount(iouReport: OnyxEntry<Report>, shouldExcludeNonReimbursables: boolean): NonHeldAndFullAmount {
+function getNonHeldAndFullAmount(iouReport: OnyxEntry<Report>, shouldExcludeNonReimbursables: boolean, allReportTransactions?: Transaction[]): NonHeldAndFullAmount {
     // if the report is an expense report, the total amount should be negated
     const coefficient = isExpenseReport(iouReport) ? -1 : 1;
 
@@ -10940,7 +10940,7 @@ function getNonHeldAndFullAmount(iouReport: OnyxEntry<Report>, shouldExcludeNonR
     // 1. There should be held expenses
     // 2. For expense reports with negative totals, we need to ensure the unheld amount is valid
     //    by checking that the absolute values are meaningful and different
-    const hasHeldExpensesLocal = hasHeldExpenses(iouReport?.reportID);
+    const hasHeldExpensesLocal = hasHeldExpenses(iouReport?.reportID, allReportTransactions);
     const hasValidNonHeldAmount =
         hasHeldExpensesLocal &&
         // For normal cases (positive amounts or IOU reports)

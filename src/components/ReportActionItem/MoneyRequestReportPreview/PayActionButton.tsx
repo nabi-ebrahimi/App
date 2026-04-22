@@ -32,7 +32,7 @@ type PayActionButtonProps = {
     startApprovedAnimation: () => void;
     onPaymentOptionsShow?: () => void;
     onPaymentOptionsHide?: () => void;
-    onHoldMenuOpen: (requestType: string, paymentType?: PaymentMethodType, canPay?: boolean) => void;
+    onHoldMenuOpen: (requestType: string, paymentType?: PaymentMethodType, methodID?: number) => void;
     buttonMaxWidth: {maxWidth?: number};
     reportPreviewAction: ValueOf<typeof CONST.REPORT.REPORT_PREVIEW_ACTIONS>;
 };
@@ -100,8 +100,8 @@ function PayActionButton({
     const confirmApproval = () => {
         if (isDelegateAccessRestricted) {
             showDelegateNoAccessModal();
-        } else if (hasHeldExpensesReportUtils(iouReport?.reportID)) {
-            onHoldMenuOpen(CONST.IOU.REPORT_ACTION_TYPE.APPROVE, undefined, shouldShowPayButton);
+        } else if (hasHeldExpensesReportUtils(iouReport?.reportID, transactions)) {
+            onHoldMenuOpen(CONST.IOU.REPORT_ACTION_TYPE.APPROVE);
         } else {
             approveMoneyRequest({
                 expenseReport: iouReport,
@@ -129,8 +129,8 @@ function PayActionButton({
         }
         if (isDelegateAccessRestricted) {
             showDelegateNoAccessModal();
-        } else if (hasHeldExpensesReportUtils(iouReport?.reportID)) {
-            onHoldMenuOpen(CONST.IOU.REPORT_ACTION_TYPE.PAY, type, shouldShowPayButton);
+        } else if (hasHeldExpensesReportUtils(iouReport?.reportID, transactions)) {
+            onHoldMenuOpen(CONST.IOU.REPORT_ACTION_TYPE.PAY, type, methodID);
         } else if (chatReport && iouReport) {
             if (isInvoiceReportUtils(iouReport)) {
                 startAnimation();

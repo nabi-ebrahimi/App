@@ -17,7 +17,6 @@ import {hasPendingDEWSubmit} from '@libs/ReportActionsUtils';
 import getReportPreviewAction from '@libs/ReportPreviewActionUtils';
 import {getAddExpenseDropdownOptions} from '@libs/ReportUtils';
 import variables from '@styles/variables';
-import {canIOUBePaid as canIOUBePaidIOUActions} from '@userActions/IOU/ReportWorkflow';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
 import {validTransactionDraftIDsSelector} from '@src/selectors/TransactionDraft';
@@ -40,7 +39,7 @@ type ReportPreviewActionButtonProps = {
     onPaymentOptionsShow?: () => void;
     onPaymentOptionsHide?: () => void;
     openReportFromPreview: () => void;
-    onHoldMenuOpen: (requestType: string, paymentType?: PaymentMethodType, canPay?: boolean) => void;
+    onHoldMenuOpen: (requestType: string, paymentType?: PaymentMethodType, methodID?: number) => void;
     transactionPreviewCarouselWidth: number;
 };
 
@@ -93,10 +92,6 @@ function ReportPreviewActionButton({
     const isDEWSubmitPending = hasPendingDEWSubmit(iouReportMetadata, isDEWPolicy);
     const connectedIntegration = getConnectedIntegration(policy);
 
-    const canIOUBePaid = canIOUBePaidIOUActions(iouReport, chatReport, policy, bankAccountList, transactions, false, undefined, invoiceReceiverPolicy);
-    const onlyShowPayElsewhere = !canIOUBePaid && canIOUBePaidIOUActions(iouReport, chatReport, policy, bankAccountList, transactions, true, undefined, invoiceReceiverPolicy);
-    const shouldShowPayButton = isPaidAnimationRunning || canIOUBePaid || onlyShowPayElsewhere;
-
     const buttonMaxWidth =
         !shouldUseNarrowLayout && transactionPreviewCarouselWidth >= CONST.REPORT.TRANSACTION_PREVIEW.CAROUSEL.MIN_WIDE_WIDTH ? {maxWidth: transactionPreviewCarouselWidth} : {};
 
@@ -134,9 +129,9 @@ function ReportPreviewActionButton({
             return (
                 <ApproveActionButton
                     iouReportID={iouReportID}
+                    transactions={transactions}
                     startApprovedAnimation={startApprovedAnimation}
                     onHoldMenuOpen={onHoldMenuOpen}
-                    shouldShowPayButton={shouldShowPayButton}
                 />
             );
         }

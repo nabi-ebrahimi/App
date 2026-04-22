@@ -1,28 +1,21 @@
 import React from 'react';
-import type {OnyxEntry} from 'react-native-onyx';
+import useHoldMenuState from '@hooks/useHoldMenuState';
 import useHoldMenuSubmit from '@hooks/useHoldMenuSubmit';
 import type {ActionHandledType} from '@hooks/useHoldMenuSubmit';
 import useLocalize from '@hooks/useLocalize';
+import useOnyx from '@hooks/useOnyx';
 import useResponsiveLayout from '@hooks/useResponsiveLayout';
-import type * as OnyxTypes from '@src/types/onyx';
+import ONYXKEYS from '@src/ONYXKEYS';
 import type {PaymentMethodType} from '@src/types/onyx/OriginalMessage';
 import DecisionModal from './DecisionModal';
 
 type ProcessMoneyReportHoldMenuProps = {
-    /** The chat report this report is linked to */
-    chatReport: OnyxEntry<OnyxTypes.Report>;
-
-    /** Full amount of expense report to pay */
-    fullAmount: string;
-
     /** Whether modal is visible */
     isVisible: boolean;
 
-    /** The report currently being looked at */
-    moneyRequestReport: OnyxEntry<OnyxTypes.Report>;
-
-    /** Not held amount of expense report */
-    nonHeldAmount?: string;
+    /** Report IDs for this hold menu */
+    reportID: string | undefined;
+    chatReportID: string | undefined;
 
     /** Callback for closing modal */
     onClose: () => void;
@@ -34,36 +27,21 @@ type ProcessMoneyReportHoldMenuProps = {
     methodID?: number;
 
     /** Type of action handled */
-    requestType?: ActionHandledType;
-
-    /** Number of transaction of a money request */
-    transactionCount: number;
+    requestType: ActionHandledType;
 
     /** Callback invoked after the user confirms pay/approve, receives whether the full amount was chosen */
     onConfirm?: (full: boolean) => void;
-
-    /** Whether the report has non held expenses */
-    hasNonHeldExpenses?: boolean;
 };
 
-function ProcessMoneyReportHoldMenu({
-    requestType,
-    nonHeldAmount = '0',
-    fullAmount,
-    onClose,
-    isVisible,
-    paymentType,
-    methodID,
-    chatReport,
-    moneyRequestReport,
-    transactionCount,
-    onConfirm,
-    hasNonHeldExpenses,
-}: ProcessMoneyReportHoldMenuProps) {
+function ProcessMoneyReportHoldMenu({requestType, onClose, isVisible, paymentType, methodID, reportID, chatReportID, onConfirm}: ProcessMoneyReportHoldMenuProps) {
     const {translate} = useLocalize();
     // We need to use isSmallScreenWidth instead of shouldUseNarrowLayout to apply the correct modal type
     // eslint-disable-next-line rulesdir/prefer-shouldUseNarrowLayout-instead-of-isSmallScreenWidth
     const {isSmallScreenWidth} = useResponsiveLayout();
+    const [moneyRequestReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`);
+    const [chatReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${chatReportID}`);
+    const {nonHeldAmount, fullAmount, hasOnlyHeldExpenses, hasValidNonHeldAmount, transactionCount} = useHoldMenuState(reportID, requestType);
+    const hasNonHeldExpenses = !hasOnlyHeldExpenses;
 
     const {onSubmit, isApprove} = useHoldMenuSubmit({
         moneyRequestReport,
@@ -85,7 +63,7 @@ function ProcessMoneyReportHoldMenu({
                     ? translate(isApprove ? 'iou.confirmApprovalAmount' : 'iou.confirmPayAmount')
                     : translate(isApprove ? 'iou.confirmApprovalAllHoldAmount' : 'iou.confirmPayAllHoldAmount', {count: transactionCount})
             }
-            firstOptionText={hasNonHeldExpenses ? `${translate(isApprove ? 'iou.approveOnly' : 'iou.payOnly')} ${nonHeldAmount}` : undefined}
+            firstOptionText={hasNonHeldExpenses && hasValidNonHeldAmount ? `${translate(isApprove ? 'iou.approveOnly' : 'iou.payOnly')} ${nonHeldAmount}` : undefined}
             secondOptionText={`${translate(isApprove ? 'iou.approve' : 'iou.pay')} ${fullAmount}`}
             onFirstOptionSubmit={() => onSubmit(false)}
             onSecondOptionSubmit={() => onSubmit(true)}

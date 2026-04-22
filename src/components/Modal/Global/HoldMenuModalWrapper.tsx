@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import DecisionModal from '@components/DecisionModal';
+import useHoldMenuState from '@hooks/useHoldMenuState';
 import useHoldMenuSubmit from '@hooks/useHoldMenuSubmit';
 import type {ActionHandledType} from '@hooks/useHoldMenuSubmit';
 import useLocalize from '@hooks/useLocalize';
@@ -15,26 +16,10 @@ type HoldMenuModalWrapperProps = ModalProps & {
     requestType: ActionHandledType;
     paymentType?: PaymentMethodType;
     methodID?: number;
-    nonHeldAmount?: string;
-    fullAmount: string;
-    hasNonHeldExpenses?: boolean;
-    transactionCount: number;
     onConfirm?: (full: boolean) => void;
 };
 
-function HoldMenuModalWrapper({
-    closeModal,
-    reportID,
-    chatReportID,
-    requestType,
-    paymentType,
-    methodID,
-    nonHeldAmount = '0',
-    fullAmount,
-    hasNonHeldExpenses,
-    transactionCount,
-    onConfirm,
-}: HoldMenuModalWrapperProps) {
+function HoldMenuModalWrapper({closeModal, reportID, chatReportID, requestType, paymentType, methodID, onConfirm}: HoldMenuModalWrapperProps) {
     const [isVisible, setIsVisible] = useState(true);
     const {translate} = useLocalize();
     // We need to use isSmallScreenWidth instead of shouldUseNarrowLayout to apply the correct modal type
@@ -43,6 +28,8 @@ function HoldMenuModalWrapper({
 
     const [moneyRequestReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`);
     const [chatReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${chatReportID}`);
+    const {nonHeldAmount, fullAmount, hasOnlyHeldExpenses, hasValidNonHeldAmount, transactionCount} = useHoldMenuState(reportID, requestType);
+    const hasNonHeldExpenses = !hasOnlyHeldExpenses;
 
     const {onSubmit, isApprove} = useHoldMenuSubmit({
         moneyRequestReport,
@@ -64,7 +51,7 @@ function HoldMenuModalWrapper({
                     ? translate(isApprove ? 'iou.confirmApprovalAmount' : 'iou.confirmPayAmount')
                     : translate(isApprove ? 'iou.confirmApprovalAllHoldAmount' : 'iou.confirmPayAllHoldAmount', {count: transactionCount})
             }
-            firstOptionText={hasNonHeldExpenses ? `${translate(isApprove ? 'iou.approveOnly' : 'iou.payOnly')} ${nonHeldAmount}` : undefined}
+            firstOptionText={hasNonHeldExpenses && hasValidNonHeldAmount ? `${translate(isApprove ? 'iou.approveOnly' : 'iou.payOnly')} ${nonHeldAmount}` : undefined}
             secondOptionText={`${translate(isApprove ? 'iou.approve' : 'iou.pay')} ${fullAmount}`}
             onFirstOptionSubmit={() => onSubmit(false)}
             onSecondOptionSubmit={() => onSubmit(true)}

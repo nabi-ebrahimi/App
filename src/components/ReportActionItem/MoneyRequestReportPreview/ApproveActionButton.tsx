@@ -11,16 +11,17 @@ import {hasHeldExpenses as hasHeldExpensesReportUtils, hasViolations as hasViola
 import {approveMoneyRequest} from '@userActions/IOU/ReportWorkflow';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
+import type {Transaction} from '@src/types/onyx';
 import type {PaymentMethodType} from '@src/types/onyx/OriginalMessage';
 
 type ApproveActionButtonProps = {
     iouReportID: string | undefined;
+    transactions: Transaction[];
     startApprovedAnimation: () => void;
-    onHoldMenuOpen: (requestType: string, paymentType?: PaymentMethodType, canPay?: boolean) => void;
-    shouldShowPayButton: boolean;
+    onHoldMenuOpen: (requestType: string, paymentType?: PaymentMethodType, methodID?: number) => void;
 };
 
-function ApproveActionButton({iouReportID, startApprovedAnimation, onHoldMenuOpen, shouldShowPayButton}: ApproveActionButtonProps) {
+function ApproveActionButton({iouReportID, transactions, startApprovedAnimation, onHoldMenuOpen}: ApproveActionButtonProps) {
     const {translate} = useLocalize();
     const currentUserDetails = useCurrentUserPersonalDetails();
     const currentUserAccountID = currentUserDetails.accountID;
@@ -47,8 +48,8 @@ function ApproveActionButton({iouReportID, startApprovedAnimation, onHoldMenuOpe
     const confirmApproval = () => {
         if (isDelegateAccessRestricted) {
             showDelegateNoAccessModal();
-        } else if (hasHeldExpensesReportUtils(iouReport?.reportID)) {
-            onHoldMenuOpen(CONST.IOU.REPORT_ACTION_TYPE.APPROVE, undefined, shouldShowPayButton);
+        } else if (hasHeldExpensesReportUtils(iouReport?.reportID, transactions)) {
+            onHoldMenuOpen(CONST.IOU.REPORT_ACTION_TYPE.APPROVE);
         } else {
             approveMoneyRequest({
                 expenseReport: iouReport,
