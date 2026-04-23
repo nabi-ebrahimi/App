@@ -57,7 +57,7 @@ function MiniQuickEmojiReactions({reportAction, reportActionID, onEmojiSelected,
             onEmojiSelected: (_emojiCode, emojiObject, skinTone) => {
                 selectEmojiWithReaction(emojiObject, skinTone);
             },
-            emojiPopoverAnchor: ref,
+            getEmojiPopoverAnchor: () => ref,
             id: reportAction.reportActionID,
         });
     };

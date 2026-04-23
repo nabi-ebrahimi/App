@@ -1,4 +1,4 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useRef} from 'react';
 import type {ForwardedRef} from 'react';
 import {View} from 'react-native';
 import type {StyleProp, ViewStyle} from 'react-native';
@@ -12,7 +12,7 @@ import useLocalize from '@hooks/useLocalize';
 import useStyleUtils from '@hooks/useStyleUtils';
 import useThemeStyles from '@hooks/useThemeStyles';
 import type {EmojiPickerOnModalHide} from '@libs/actions/EmojiPickerAction';
-import {hideEmojiPicker, isEmojiPickerVisible, resetEmojiPopoverAnchor, showEmojiPicker} from '@libs/actions/EmojiPickerAction';
+import {hideEmojiPicker, isEmojiPickerVisible, showEmojiPicker} from '@libs/actions/EmojiPickerAction';
 import getButtonState from '@libs/getButtonState';
 import CONST from '@src/CONST';
 import KeyboardUtils from '@src/utils/keyboard';
@@ -42,7 +42,6 @@ function EmojiPickerButtonDropdown(
     const {translate} = useLocalize();
     const icons = useMemoizedLazyExpensifyIcons(['ArrowRight', 'Emoji']);
 
-    useEffect(() => resetEmojiPopoverAnchor, []);
     const onPress = () => {
         if (isEmojiPickerVisible()) {
             hideEmojiPicker();
@@ -52,7 +51,7 @@ function EmojiPickerButtonDropdown(
             showEmojiPicker({
                 onModalHide,
                 onEmojiSelected: (emoji) => onInputChange(emoji),
-                emojiPopoverAnchor,
+                getEmojiPopoverAnchor: () => emojiPopoverAnchor,
                 anchorOrigin: {
                     horizontal: CONST.MODAL.ANCHOR_ORIGIN_HORIZONTAL.LEFT,
                     vertical: CONST.MODAL.ANCHOR_ORIGIN_VERTICAL.TOP,

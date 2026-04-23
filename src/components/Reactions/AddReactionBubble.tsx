@@ -1,4 +1,4 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useRef} from 'react';
 import {View} from 'react-native';
 import type {Emoji} from '@assets/emojis/types';
 import Icon from '@components/Icon';
@@ -12,7 +12,7 @@ import useThemeStyles from '@hooks/useThemeStyles';
 import getButtonState from '@libs/getButtonState';
 import {contextMenuRef} from '@pages/inbox/report/ContextMenu/ReportActionContextMenu';
 import variables from '@styles/variables';
-import {emojiPickerRef, resetEmojiPopoverAnchor, showEmojiPicker} from '@userActions/EmojiPickerAction';
+import {emojiPickerRef, showEmojiPicker} from '@userActions/EmojiPickerAction';
 import type {AnchorOrigin} from '@userActions/EmojiPickerAction';
 import {callFunctionIfActionIsAllowed} from '@userActions/Session';
 import CONST from '@src/CONST';
@@ -56,8 +56,6 @@ function AddReactionBubble({onSelectEmoji, reportAction, onPressOpenPicker, onWi
     const ref = useRef<View | HTMLDivElement>(null);
     const {translate} = useLocalize();
 
-    useEffect(() => resetEmojiPopoverAnchor, []);
-
     const onPress = () => {
         const openPicker = (refParam?: PickerRefElement, anchorOrigin?: AnchorOrigin) => {
             showEmojiPicker({
@@ -67,7 +65,7 @@ function AddReactionBubble({onSelectEmoji, reportAction, onPressOpenPicker, onWi
                 onEmojiSelected: (emojiCode, emojiObject, preferredSkinTone) => {
                     onSelectEmoji(emojiObject, preferredSkinTone);
                 },
-                emojiPopoverAnchor: refParam ?? ref,
+                getEmojiPopoverAnchor: () => refParam ?? ref,
                 anchorOrigin,
                 onWillShow: onWillShowPicker,
                 id: reportAction.reportActionID,

@@ -1,5 +1,5 @@
 import {useIsFocused} from '@react-navigation/native';
-import React, {memo, useEffect, useRef} from 'react';
+import React, {memo, useRef} from 'react';
 import * as ActionSheetAwareScrollView from '@components/ActionSheetAwareScrollView';
 import Icon from '@components/Icon';
 import type PressableProps from '@components/Pressable/GenericPressable/types';
@@ -10,7 +10,7 @@ import useLocalize from '@hooks/useLocalize';
 import useStyleUtils from '@hooks/useStyleUtils';
 import useThemeStyles from '@hooks/useThemeStyles';
 import getButtonState from '@libs/getButtonState';
-import {emojiPickerRef, resetEmojiPopoverAnchor, showEmojiPicker} from '@userActions/EmojiPickerAction';
+import {emojiPickerRef, showEmojiPicker} from '@userActions/EmojiPickerAction';
 import type {EmojiPickerOnModalHide, OnEmojiSelected} from '@userActions/EmojiPickerAction';
 import CONST from '@src/CONST';
 import KeyboardUtils from '@src/utils/keyboard';
@@ -56,7 +56,7 @@ function EmojiPickerButton({isDisabled = false, emojiPickerID = '', shiftVertica
                 showEmojiPicker({
                     onModalHide,
                     onEmojiSelected,
-                    emojiPopoverAnchor,
+                    getEmojiPopoverAnchor: () => emojiPopoverAnchor,
                     anchorOrigin: {
                         horizontal: CONST.MODAL.ANCHOR_ORIGIN_HORIZONTAL.RIGHT,
                         vertical: CONST.MODAL.ANCHOR_ORIGIN_VERTICAL.BOTTOM,
@@ -70,8 +70,6 @@ function EmojiPickerButton({isDisabled = false, emojiPickerID = '', shiftVertica
         }
         onPress?.(e);
     };
-
-    useEffect(() => resetEmojiPopoverAnchor, []);
 
     return (
         <Tooltip text={translate('reportActionCompose.emoji')}>

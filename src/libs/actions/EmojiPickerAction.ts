@@ -14,6 +14,7 @@ type AnchorOrigin = {
 };
 
 type EmojiPopoverAnchor = RefObject<View | HTMLDivElement | TextInput | null>;
+type EmojiPopoverAnchorGetter = () => EmojiPopoverAnchor | null;
 
 type EmojiPickerOnWillShow = (callback?: CloseContextMenuCallback) => void;
 
@@ -22,7 +23,7 @@ type EmojiPickerOnModalHide = (isNavigating?: boolean) => void;
 type ShowEmojiPickerOptions = {
     onModalHide: EmojiPickerOnModalHide;
     onEmojiSelected: OnEmojiSelected;
-    emojiPopoverAnchor: EmojiPopoverAnchor;
+    getEmojiPopoverAnchor: EmojiPopoverAnchorGetter;
     anchorOrigin?: AnchorOrigin;
     onWillShow?: EmojiPickerOnWillShow;
     id?: string;
@@ -37,7 +38,6 @@ type EmojiPickerRef = {
     clearActive: () => void;
     hideEmojiPicker: (isNavigating?: boolean) => void;
     isEmojiPickerVisible: boolean;
-    resetEmojiPopoverAnchor: () => void;
 };
 
 type OnEmojiSelected = (emojiCode: string, emojiObject: Emoji, preferredSkinTone: number) => void;
@@ -49,7 +49,7 @@ const emojiPickerRef = React.createRef<EmojiPickerRef>();
  *
  * @param onModalHide - Run a callback when Modal hides.
  * @param onEmojiSelected - Run a callback when Emoji selected.
- * @param emojiPopoverAnchor - Element on which EmojiPicker is anchored
+ * @param getEmojiPopoverAnchor - Getter for the current element on which EmojiPicker is anchored
  * @param anchorOrigin - Anchor origin for Popover
  * @param onWillShow - Run a callback when Popover will show
  * @param id - Unique id for EmojiPicker
@@ -100,13 +100,5 @@ function isEmojiPickerVisible(): boolean {
     return emojiPickerRef.current.isEmojiPickerVisible;
 }
 
-function resetEmojiPopoverAnchor() {
-    if (!emojiPickerRef.current) {
-        return;
-    }
-
-    emojiPickerRef.current.resetEmojiPopoverAnchor();
-}
-
-export {emojiPickerRef, showEmojiPicker, hideEmojiPicker, isActive, clearActive, isEmojiPickerVisible, resetEmojiPopoverAnchor};
-export type {AnchorOrigin, EmojiPickerOnModalHide, OnEmojiSelected, EmojiPopoverAnchor, EmojiPickerOnWillShow, ShowEmojiPickerOptions, EmojiPickerRef};
+export {emojiPickerRef, showEmojiPicker, hideEmojiPicker, isActive, clearActive, isEmojiPickerVisible};
+export type {AnchorOrigin, EmojiPickerOnModalHide, OnEmojiSelected, EmojiPopoverAnchor, EmojiPopoverAnchorGetter, EmojiPickerOnWillShow, ShowEmojiPickerOptions, EmojiPickerRef};
