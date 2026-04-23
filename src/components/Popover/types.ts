@@ -38,6 +38,9 @@ type PopoverProps = BaseModalProps &
 
         /** Whether we should display the popover below other modals (e.g. SidePanel, RHP) */
         shouldDisplayBelowModals?: boolean;
+
+        /** Stable identifier for the same logical popover session across remounts */
+        popoverKey?: string;
     };
 
 export default PopoverProps;

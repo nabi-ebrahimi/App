@@ -24,7 +24,6 @@ function PopoverWithMeasuredContent({shouldWrapModalChildrenInScrollViewIfBottom
             return;
         }
         startTransition(() => {
-            console.log("Setting isReadyToCalculatePosition to true");
             setIsReadyToCalculatePosition(true);
         });
     }, [isSmallScreenWidth]);

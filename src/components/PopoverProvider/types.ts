@@ -21,6 +21,7 @@ type AnchorRef = {
     ref: RefObject<AnchorType>;
     close: (anchorRef?: RefObject<AnchorType>) => void;
     anchorRef: RefObject<AnchorType>;
+    popoverKey?: string;
     extraAnchorRefs?: Array<RefObject<AnchorType>>;
 };
 

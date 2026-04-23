@@ -14,7 +14,6 @@ type AnchorOrigin = {
 };
 
 type EmojiPopoverAnchor = RefObject<View | HTMLDivElement | TextInput | null>;
-type EmojiPopoverAnchorGetter = () => EmojiPopoverAnchor | null;
 
 type EmojiPickerOnWillShow = (callback?: CloseContextMenuCallback) => void;
 
@@ -23,7 +22,7 @@ type EmojiPickerOnModalHide = (isNavigating?: boolean) => void;
 type ShowEmojiPickerOptions = {
     onModalHide: EmojiPickerOnModalHide;
     onEmojiSelected: OnEmojiSelected;
-    getEmojiPopoverAnchor: EmojiPopoverAnchorGetter;
+    emojiPopoverAnchor: EmojiPopoverAnchor;
     anchorOrigin?: AnchorOrigin;
     onWillShow?: EmojiPickerOnWillShow;
     id?: string;
@@ -50,14 +49,12 @@ const emojiPickerRef = React.createRef<EmojiPickerRef>();
  *
  * @param onModalHide - Run a callback when Modal hides.
  * @param onEmojiSelected - Run a callback when Emoji selected.
- * @param getEmojiPopoverAnchor - Getter for the current element on which EmojiPicker is anchored
+ * @param emojiPopoverAnchor - Element on which EmojiPicker is anchored
  * @param anchorOrigin - Anchor origin for Popover
  * @param onWillShow - Run a callback when Popover will show
  * @param id - Unique id for EmojiPicker
  */
 function showEmojiPicker(options: ShowEmojiPickerOptions) {
-    console.log("showEmojiPicker called with options:", options);
-    console.log("emojiPickerRef.current:", emojiPickerRef.current);
     if (!emojiPickerRef.current) {
         return;
     }
@@ -69,8 +66,6 @@ function showEmojiPicker(options: ShowEmojiPickerOptions) {
  * Hide the Emoji Picker modal.
  */
 function hideEmojiPicker(isNavigating?: boolean) {
-    console.log("hideEmojiPicker called with isNavigating:", isNavigating);
-    console.log("emojiPickerRef.current:", emojiPickerRef.current);
     if (!emojiPickerRef.current) {
         return;
     }
@@ -106,8 +101,6 @@ function isEmojiPickerVisible(): boolean {
 }
 
 function resetEmojiPopoverAnchor() {
-
-    console.log("resetEmojiPopoverAnchor called");
     if (!emojiPickerRef.current) {
         return;
     }
@@ -116,4 +109,4 @@ function resetEmojiPopoverAnchor() {
 }
 
 export {emojiPickerRef, showEmojiPicker, hideEmojiPicker, isActive, clearActive, isEmojiPickerVisible, resetEmojiPopoverAnchor};
-export type {AnchorOrigin, EmojiPickerOnModalHide, OnEmojiSelected, EmojiPopoverAnchor, EmojiPopoverAnchorGetter, EmojiPickerOnWillShow, ShowEmojiPickerOptions, EmojiPickerRef};
+export type {AnchorOrigin, EmojiPickerOnModalHide, OnEmojiSelected, EmojiPopoverAnchor, EmojiPickerOnWillShow, ShowEmojiPickerOptions, EmojiPickerRef};

@@ -31,7 +31,6 @@ function ComposerEmojiPicker({reportID}: ComposerEmojiPickerProps) {
             if (!isActiveEmojiPickerAction(reportID)) {
                 return;
             }
-            console.log('hideEmojiPicker caller: ComposerEmojiPicker.useEffect.cleanup');
             hideEmojiPicker();
         },
         [reportID],

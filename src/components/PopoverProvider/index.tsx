@@ -136,7 +136,7 @@ function PopoverContextProvider(props: PopoverContextProps) {
             if (
                 activePopoverRef.current &&
                 activePopoverRef.current.ref !== popoverParams?.ref &&
-                activePopoverRef.current.anchorRef !== popoverParams.anchorRef
+                activePopoverRef.current.popoverKey !== popoverParams.popoverKey
             ) {
                 closePopover(activePopoverRef.current.anchorRef);
             }

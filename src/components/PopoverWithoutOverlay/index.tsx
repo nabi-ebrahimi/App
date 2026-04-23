@@ -23,6 +23,7 @@ function PopoverWithoutOverlay({
     isVisible,
     onClose,
     onModalHide = () => {},
+    popoverKey,
     children,
     shouldDisplayBelowModals = false,
 }: PopoverWithoutOverlayProps) {
@@ -54,6 +55,7 @@ function PopoverWithoutOverlay({
                 ref: withoutOverlayRef,
                 close: onClose ?? NOOP,
                 anchorRef,
+                popoverKey,
             });
             removeOnClose = setCloseModal(onClose ?? NOOP);
         } else {
