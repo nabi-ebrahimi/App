@@ -7612,6 +7612,7 @@ const CONST = {
                     TO: this.TABLE_COLUMNS.TO,
                     POLICY_NAME: this.TABLE_COLUMNS.POLICY_NAME,
                     CARD: this.TABLE_COLUMNS.CARD,
+                    WITHDRAWAL_ID: this.TABLE_COLUMNS.WITHDRAWAL_ID,
                     CATEGORY: this.TABLE_COLUMNS.CATEGORY,
                     ATTENDEES: this.TABLE_COLUMNS.ATTENDEES,
                     TOTAL_PER_ATTENDEE: this.TABLE_COLUMNS.TOTAL_PER_ATTENDEE,

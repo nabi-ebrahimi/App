@@ -159,6 +159,7 @@ import {
     isSettled,
     shouldReportShowSubscript,
 } from './ReportUtils';
+import {getExpenseSearchAlwaysVisibleColumns, getExpenseSearchColumnTranslationKey, getExpenseSearchCustomColumns, isExpenseSearchColumnSortable} from './SearchColumnMetadata';
 import {
     buildCannedSearchQuery,
     buildQueryStringFromFilterFormValues,
@@ -266,6 +267,7 @@ const transactionColumnNamesToSortingProperty: TransactionSorting = {
     [CONST.SEARCH.TABLE_COLUMNS.TOTAL_AMOUNT]: 'formattedTotal' as const,
     [CONST.SEARCH.TABLE_COLUMNS.CATEGORY]: 'category' as const,
     [CONST.SEARCH.TABLE_COLUMNS.ORIGINAL_AMOUNT]: 'originalAmount' as const,
+    [CONST.SEARCH.TABLE_COLUMNS.WITHDRAWAL_ID]: 'withdrawalID' as const,
     [CONST.SEARCH.TABLE_COLUMNS.REIMBURSABLE]: 'reimbursable' as const,
     [CONST.SEARCH.TABLE_COLUMNS.BILLABLE]: 'billable' as const,
     [CONST.SEARCH.TABLE_COLUMNS.TYPE]: null,
@@ -3916,7 +3918,7 @@ function isSearchResultsEmpty(searchResults: SearchResults, groupBy?: SearchGrou
 function getCustomColumns(value?: SearchDataTypes | SearchGroupBy): SearchCustomColumnIds[] {
     switch (value) {
         case CONST.SEARCH.DATA_TYPES.EXPENSE:
-            return Object.values(CONST.SEARCH.TYPE_CUSTOM_COLUMNS.EXPENSE);
+            return getExpenseSearchCustomColumns();
         case CONST.SEARCH.DATA_TYPES.EXPENSE_REPORT:
             return Object.values(CONST.SEARCH.TYPE_CUSTOM_COLUMNS.EXPENSE_REPORT);
         case CONST.SEARCH.DATA_TYPES.INVOICE:
@@ -3992,70 +3994,21 @@ function getCustomColumnDefault(value?: SearchDataTypes | SearchGroupBy): Search
 }
 
 function getSearchColumnTranslationKey(column: SearchColumnType): TranslationPaths {
+    const expenseColumnTranslationKey = getExpenseSearchColumnTranslationKey(column);
+    if (expenseColumnTranslationKey) {
+        return expenseColumnTranslationKey;
+    }
+
     // eslint-disable-next-line default-case
     switch (column) {
-        case CONST.SEARCH.TABLE_COLUMNS.DATE:
-            return 'common.date';
-        case CONST.SEARCH.TABLE_COLUMNS.SUBMITTED:
-            return 'common.submitted';
-        case CONST.SEARCH.TABLE_COLUMNS.APPROVED:
-            return 'search.filters.approved';
-        case CONST.SEARCH.TABLE_COLUMNS.POSTED:
-            return 'search.filters.posted';
-        case CONST.SEARCH.TABLE_COLUMNS.EXPORTED:
-            return 'search.filters.exported';
-        case CONST.SEARCH.TABLE_COLUMNS.MERCHANT:
-            return 'common.merchant';
-        case CONST.SEARCH.TABLE_COLUMNS.DESCRIPTION:
-            return 'common.description';
-        case CONST.SEARCH.TABLE_COLUMNS.FROM:
-            return 'common.from';
-        case CONST.SEARCH.TABLE_COLUMNS.TO:
-            return 'common.to';
-        case CONST.SEARCH.TABLE_COLUMNS.CATEGORY:
-            return 'common.category';
-        case CONST.SEARCH.TABLE_COLUMNS.ATTENDEES:
-            return 'iou.attendees';
-        case CONST.SEARCH.TABLE_COLUMNS.TOTAL_PER_ATTENDEE:
-            return 'iou.totalPerAttendee';
-        case CONST.SEARCH.TABLE_COLUMNS.RECEIPT:
-            return 'common.receipt';
-        case CONST.SEARCH.TABLE_COLUMNS.TAG:
-            return 'common.tag';
-        case CONST.SEARCH.TABLE_COLUMNS.ORIGINAL_AMOUNT:
-            return 'common.originalAmount';
-        case CONST.SEARCH.TABLE_COLUMNS.REIMBURSABLE:
-            return 'common.reimbursable';
-        case CONST.SEARCH.TABLE_COLUMNS.BILLABLE:
-            return 'common.billable';
-        case CONST.SEARCH.TABLE_COLUMNS.ACTION:
-            return 'common.action';
-        case CONST.SEARCH.TABLE_COLUMNS.TITLE:
-            return 'common.title';
-        case CONST.SEARCH.TABLE_COLUMNS.STATUS:
-            return 'common.status';
-        case CONST.SEARCH.TABLE_COLUMNS.EXCHANGE_RATE:
-            return 'common.exchangeRate';
-        case CONST.SEARCH.TABLE_COLUMNS.POLICY_NAME:
-            return 'workspace.common.workspace';
-        case CONST.SEARCH.TABLE_COLUMNS.CARD:
-            return 'common.card';
         case CONST.SEARCH.TABLE_COLUMNS.REIMBURSABLE_TOTAL:
             return 'common.reimbursableTotal';
         case CONST.SEARCH.TABLE_COLUMNS.NON_REIMBURSABLE_TOTAL:
             return 'common.nonReimbursableTotal';
-        case CONST.SEARCH.TABLE_COLUMNS.TAX_AMOUNT:
-            return 'common.tax';
-        case CONST.SEARCH.TABLE_COLUMNS.TAX_RATE:
-            return 'iou.taxRate';
         case CONST.SEARCH.TABLE_COLUMNS.REPORT_ID:
             return 'common.longReportID';
-        case CONST.SEARCH.TABLE_COLUMNS.TOTAL_AMOUNT:
-            return 'iou.amount';
         case CONST.SEARCH.TABLE_COLUMNS.TOTAL:
             return 'common.total';
-        case CONST.SEARCH.TABLE_COLUMNS.BASE_62_REPORT_ID:
-            return 'common.reportID';
         case CONST.SEARCH.TABLE_COLUMNS.GROUP_WITHDRAWAL_STATUS:
             return 'common.withdrawalStatus';
         case CONST.SEARCH.TABLE_COLUMNS.GROUP_BANK_ACCOUNT:
@@ -4097,6 +4050,11 @@ function getSearchColumnTranslationKey(column: SearchColumnType): TranslationPat
 }
 
 function isColumnSortable(column: SearchColumnType) {
+    const expenseColumnSortable = isExpenseSearchColumnSortable(column);
+    if (expenseColumnSortable !== undefined) {
+        return expenseColumnSortable;
+    }
+
     return !nonSortableColumns.has(column);
 }
 
@@ -5185,6 +5143,7 @@ function getColumnsToShow({
               [CONST.SEARCH.TABLE_COLUMNS.TO]: false,
               [CONST.SEARCH.TABLE_COLUMNS.POLICY_NAME]: false,
               [CONST.SEARCH.TABLE_COLUMNS.CARD]: false,
+              [CONST.SEARCH.TABLE_COLUMNS.WITHDRAWAL_ID]: false,
               [CONST.SEARCH.TABLE_COLUMNS.CATEGORY]: false,
               [CONST.SEARCH.TABLE_COLUMNS.TAG]: false,
               [CONST.SEARCH.TABLE_COLUMNS.REIMBURSABLE]: false,
@@ -5203,7 +5162,7 @@ function getColumnsToShow({
           };
 
     // If the user has set custom columns for the search, we need to respect their preference and order
-    const allowedColumns: string[] = isExpenseReportView ? Object.values(CONST.SEARCH.REPORT_DETAILS_CUSTOM_COLUMNS) : Object.values(CONST.SEARCH.TYPE_CUSTOM_COLUMNS.EXPENSE);
+    const allowedColumns: string[] = isExpenseReportView ? Object.values(CONST.SEARCH.REPORT_DETAILS_CUSTOM_COLUMNS) : getExpenseSearchCustomColumns();
     const filteredVisibleColumns = visibleColumns.filter((column) => allowedColumns.includes(column));
 
     let customResult: SearchColumnType[] | undefined;
@@ -5380,23 +5339,7 @@ function getColumnsToShow({
         // Columns that always have content and don't need data-presence checks.
         // These are false in the default columns map (so they don't appear by default)
         // but should be kept when explicitly selected by the user in custom columns.
-        const nonDataColumns = new Set<SearchColumnType>([
-            CONST.SEARCH.TABLE_COLUMNS.AVATAR,
-            CONST.SEARCH.TABLE_COLUMNS.RECEIPT,
-            CONST.SEARCH.TABLE_COLUMNS.TYPE,
-            CONST.SEARCH.TABLE_COLUMNS.DATE,
-            CONST.SEARCH.TABLE_COLUMNS.STATUS,
-            CONST.SEARCH.TABLE_COLUMNS.COMMENTS,
-            CONST.SEARCH.TABLE_COLUMNS.TOTAL_AMOUNT,
-            CONST.SEARCH.TABLE_COLUMNS.REIMBURSABLE,
-            CONST.SEARCH.TABLE_COLUMNS.BILLABLE,
-            CONST.SEARCH.TABLE_COLUMNS.BASE_62_REPORT_ID,
-            CONST.SEARCH.TABLE_COLUMNS.REPORT_ID,
-            CONST.SEARCH.TABLE_COLUMNS.TITLE,
-            CONST.SEARCH.TABLE_COLUMNS.ACTION,
-            CONST.SEARCH.TABLE_COLUMNS.ATTENDEES,
-            CONST.SEARCH.TABLE_COLUMNS.TOTAL_PER_ATTENDEE,
-        ]);
+        const nonDataColumns = new Set<SearchColumnType>([CONST.SEARCH.TABLE_COLUMNS.AVATAR, CONST.SEARCH.TABLE_COLUMNS.COMMENTS, ...getExpenseSearchAlwaysVisibleColumns()]);
 
         return customResult.filter((col) => nonDataColumns.has(col) || columns[col]);
     }

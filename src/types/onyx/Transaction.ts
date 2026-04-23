@@ -466,6 +466,9 @@ type Transaction = OnyxCommon.OnyxValueWithOfflineFeedback<
         /** The transaction tax amount */
         taxAmount?: number;
 
+        /** The withdrawal ID associated with the transaction */
+        withdrawalID?: number | string;
+
         /** The transaction converted tax amount in report's currency */
         convertedTaxAmount?: number;
 

@@ -3,6 +3,7 @@ import type {ValueOf} from 'type-fest';
 import {useMemoizedLazyExpensifyIcons} from '@hooks/useLazyAsset';
 import useResponsiveLayout from '@hooks/useResponsiveLayout';
 import useThemeStyles from '@hooks/useThemeStyles';
+import {getExpenseSearchColumnTranslationKey, isExpenseSearchColumnSortable} from '@libs/SearchColumnMetadata';
 import CONST from '@src/CONST';
 import type {TranslationPaths} from '@src/languages/types';
 import type {SearchDataTypes} from '@src/types/onyx/SearchResults';
@@ -24,142 +25,56 @@ type SearchHeaderIcons = {
     Bank?: IconAsset;
 };
 
-const getExpenseHeaders = (groupBy?: SearchGroupBy): SearchColumnConfig[] => [
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.RECEIPT,
-        translationKey: 'common.receipt',
-        isColumnSortable: false,
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.TYPE,
-        translationKey: 'common.type',
-        isColumnSortable: false,
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.DATE,
-        translationKey: 'common.date',
-        canEdit: true,
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.POSTED,
-        translationKey: 'search.filters.posted',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.EXPORTED,
-        translationKey: 'search.filters.exported',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.SUBMITTED,
-        translationKey: 'common.submitted',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.APPROVED,
-        translationKey: 'search.filters.approved',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.MERCHANT,
-        translationKey: 'common.merchant',
-        canEdit: true,
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.DESCRIPTION,
-        translationKey: 'common.description',
-        canEdit: true,
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.FROM,
-        translationKey: 'common.from',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.TO,
-        translationKey: 'common.to',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.POLICY_NAME,
-        translationKey: 'workspace.common.workspace',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.CARD,
-        translationKey: 'common.card',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.CATEGORY,
-        translationKey: 'common.category',
-        canEdit: true,
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.ATTENDEES,
-        translationKey: 'iou.attendees',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.TOTAL_PER_ATTENDEE,
-        translationKey: 'iou.totalPerAttendee',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.TAG,
-        translationKey: 'common.tag',
-        canEdit: true,
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.REIMBURSABLE,
-        translationKey: 'common.reimbursable',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.BILLABLE,
-        translationKey: 'common.billable',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.TAX_RATE,
-        translationKey: 'iou.taxRate',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.TAX_AMOUNT,
-        translationKey: 'common.tax',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.EXCHANGE_RATE,
-        translationKey: 'common.exchangeRate',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.ORIGINAL_AMOUNT,
-        translationKey: 'common.originalAmount',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.WITHDRAWAL_ID,
-        translationKey: 'common.withdrawalID',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.TOTAL_AMOUNT,
-        translationKey: groupBy ? 'common.total' : 'iou.amount',
-        canEdit: true,
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.BASE_62_REPORT_ID,
-        translationKey: 'common.reportID',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.REPORT_ID,
-        translationKey: 'common.longReportID',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.TITLE,
-        translationKey: 'common.title',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.STATUS,
-        translationKey: 'common.status',
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.EXPORTED_TO,
-        translationKey: 'search.exportedTo',
-        isColumnSortable: false,
-    },
-    {
-        columnName: CONST.SEARCH.TABLE_COLUMNS.ACTION,
-        translationKey: 'common.action',
-        isColumnSortable: false,
-    },
+const expenseHeaderColumns: SearchColumnType[] = [
+    CONST.SEARCH.TABLE_COLUMNS.RECEIPT,
+    CONST.SEARCH.TABLE_COLUMNS.TYPE,
+    CONST.SEARCH.TABLE_COLUMNS.DATE,
+    CONST.SEARCH.TABLE_COLUMNS.POSTED,
+    CONST.SEARCH.TABLE_COLUMNS.EXPORTED,
+    CONST.SEARCH.TABLE_COLUMNS.SUBMITTED,
+    CONST.SEARCH.TABLE_COLUMNS.APPROVED,
+    CONST.SEARCH.TABLE_COLUMNS.MERCHANT,
+    CONST.SEARCH.TABLE_COLUMNS.DESCRIPTION,
+    CONST.SEARCH.TABLE_COLUMNS.FROM,
+    CONST.SEARCH.TABLE_COLUMNS.TO,
+    CONST.SEARCH.TABLE_COLUMNS.POLICY_NAME,
+    CONST.SEARCH.TABLE_COLUMNS.CARD,
+    CONST.SEARCH.TABLE_COLUMNS.CATEGORY,
+    CONST.SEARCH.TABLE_COLUMNS.ATTENDEES,
+    CONST.SEARCH.TABLE_COLUMNS.TOTAL_PER_ATTENDEE,
+    CONST.SEARCH.TABLE_COLUMNS.TAG,
+    CONST.SEARCH.TABLE_COLUMNS.REIMBURSABLE,
+    CONST.SEARCH.TABLE_COLUMNS.BILLABLE,
+    CONST.SEARCH.TABLE_COLUMNS.TAX_RATE,
+    CONST.SEARCH.TABLE_COLUMNS.TAX_AMOUNT,
+    CONST.SEARCH.TABLE_COLUMNS.EXCHANGE_RATE,
+    CONST.SEARCH.TABLE_COLUMNS.ORIGINAL_AMOUNT,
+    CONST.SEARCH.TABLE_COLUMNS.WITHDRAWAL_ID,
+    CONST.SEARCH.TABLE_COLUMNS.TOTAL_AMOUNT,
+    CONST.SEARCH.TABLE_COLUMNS.BASE_62_REPORT_ID,
+    CONST.SEARCH.TABLE_COLUMNS.REPORT_ID,
+    CONST.SEARCH.TABLE_COLUMNS.TITLE,
+    CONST.SEARCH.TABLE_COLUMNS.STATUS,
+    CONST.SEARCH.TABLE_COLUMNS.EXPORTED_TO,
+    CONST.SEARCH.TABLE_COLUMNS.ACTION,
 ];
+
+const editableExpenseHeaderColumns = new Set<SearchColumnType>([
+    CONST.SEARCH.TABLE_COLUMNS.DATE,
+    CONST.SEARCH.TABLE_COLUMNS.MERCHANT,
+    CONST.SEARCH.TABLE_COLUMNS.DESCRIPTION,
+    CONST.SEARCH.TABLE_COLUMNS.CATEGORY,
+    CONST.SEARCH.TABLE_COLUMNS.TAG,
+    CONST.SEARCH.TABLE_COLUMNS.TOTAL_AMOUNT,
+]);
+
+const getExpenseHeaders = (groupBy?: SearchGroupBy): SearchColumnConfig[] =>
+    expenseHeaderColumns.map((columnName) => ({
+        columnName,
+        translationKey: columnName === CONST.SEARCH.TABLE_COLUMNS.TOTAL_AMOUNT ? (groupBy ? 'common.total' : 'iou.amount') : getExpenseSearchColumnTranslationKey(columnName),
+        isColumnSortable: isExpenseSearchColumnSortable(columnName),
+        canEdit: editableExpenseHeaderColumns.has(columnName),
+    }));
 
 const taskHeaders: SearchColumnConfig[] = [
     {

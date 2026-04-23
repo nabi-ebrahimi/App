@@ -30,6 +30,7 @@ import getBase62ReportID from '@libs/getBase62ReportID';
 import {getIOUActionForTransactionID} from '@libs/ReportActionsUtils';
 import {getReportName} from '@libs/ReportNameUtils';
 import {isExpenseReport, isIOUReport, isSettled} from '@libs/ReportUtils';
+import {getExpenseSearchColumnTextValue} from '@libs/SearchColumnMetadata';
 import StringUtils from '@libs/StringUtils';
 import {
     getAmount,
@@ -313,6 +314,18 @@ function TransactionItemRow({
     }, [report, transactionAttendees.length, transactionItem]);
 
     const renderColumn = (column: SearchColumnType): React.ReactNode => {
+        const sharedExpenseColumnTextValue = getExpenseSearchColumnTextValue(column, transactionItem);
+        if (sharedExpenseColumnTextValue !== undefined) {
+            return (
+                <View
+                    key={column}
+                    style={[StyleUtils.getReportTableColumnStyles(column)]}
+                >
+                    <TextCell text={sharedExpenseColumnTextValue} />
+                </View>
+            );
+        }
+
         switch (column) {
             case CONST.SEARCH.TABLE_COLUMNS.TYPE:
                 return (
