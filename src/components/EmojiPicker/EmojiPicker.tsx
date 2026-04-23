@@ -164,6 +164,8 @@ function EmojiPicker({viewportOffsetTop, ref}: EmojiPickerProps) {
      */
     const hideEmojiPicker = useCallback(
         (isNavigating?: boolean) => {
+
+            console.trace("Hiding emoji picker with trace");
            
             const activeElementId = DomUtils.getActiveElement()?.id;
             if (activeElementId !== CONST.COMPOSER.NATIVE_ID) {

@@ -133,7 +133,11 @@ function PopoverContextProvider(props: PopoverContextProps) {
 
     const onOpen = useCallback(
         (popoverParams: AnchorRef) => {
-            if (activePopoverRef.current && activePopoverRef.current.ref !== popoverParams?.ref) {
+            if (
+                activePopoverRef.current &&
+                activePopoverRef.current.ref !== popoverParams?.ref &&
+                activePopoverRef.current.anchorRef !== popoverParams.anchorRef
+            ) {
                 closePopover(activePopoverRef.current.anchorRef);
             }
             activePopoverRef.current = popoverParams;
