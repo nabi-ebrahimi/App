@@ -8,6 +8,7 @@ import type {DiscountInfo} from '@libs/SubscriptionUtils';
 import {calculateRemainingFreeTrialDays, doesUserHavePaymentCardAdded, getEarlyDiscountInfo, isUserOnFreeTrial, shouldShowDiscountBanner} from '@libs/SubscriptionUtils';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
+import getHomeEarlyDiscountInfo from '../common/getHomeEarlyDiscountInfo';
 
 const DISCOUNT_TYPE = {
     HALF_OFF: 50,
@@ -42,6 +43,14 @@ function useFreeTrial(): FreeTrialState {
     const onFreeTrial = isUserOnFreeTrial(firstDayFreeTrial, lastDayFreeTrial);
     const hasPaymentCard = doesUserHavePaymentCardAdded(userBillingFundID);
     const hasOwnedPaidPolicies = getOwnedPaidPolicies(allPolicies, accountID).length > 0;
+    const [, setHomeEarlyDiscountTick] = useState(0);
+    const homeEarlyDiscountInfo = getHomeEarlyDiscountInfo({
+        accountID,
+        allPolicies,
+        firstDayFreeTrial,
+        lastDayFreeTrial,
+        userBillingFundID,
+    });
     const showDiscount = shouldShowDiscountBanner(accountID, hasTeam2025Pricing, subscriptionPlan, firstDayFreeTrial, lastDayFreeTrial, userBillingFundID, allPolicies);
     const daysLeft = calculateRemainingFreeTrialDays(lastDayFreeTrial);
 
@@ -61,6 +70,22 @@ function useFreeTrial(): FreeTrialState {
             setDiscountInfo(null);
         };
     }, [firstDayFreeTrial, showDiscount]);
+
+    useEffect(() => {
+        if (homeEarlyDiscountInfo?.discountType !== DISCOUNT_TYPE.HALF_OFF) {
+            return;
+        }
+
+        const intervalID = setInterval(() => {
+            setHomeEarlyDiscountTick((currentTick) => currentTick + 1);
+        }, CONST.MILLISECONDS_PER_SECOND);
+
+        return () => clearInterval(intervalID);
+    }, [homeEarlyDiscountInfo?.discountType]);
+
+    if (homeEarlyDiscountInfo?.discountType === DISCOUNT_TYPE.HALF_OFF) {
+        return {shouldShowFreeTrialSection: false, discountType: null, daysLeft, discountInfo: null};
+    }
 
     if (!onFreeTrial || hasPaymentCard || !hasOwnedPaidPolicies) {
         return {shouldShowFreeTrialSection: false, discountType: null, daysLeft: 0, discountInfo: null};
