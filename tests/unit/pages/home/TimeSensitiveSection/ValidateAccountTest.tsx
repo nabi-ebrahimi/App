@@ -5,6 +5,7 @@ import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
 import TimeSensitiveSection from '@src/pages/home/TimeSensitiveSection';
 import useTimeSensitiveAddPaymentCard from '@src/pages/home/TimeSensitiveSection/hooks/useTimeSensitiveAddPaymentCard';
+import useTimeSensitiveEarlyDiscount from '@src/pages/home/TimeSensitiveSection/hooks/useTimeSensitiveEarlyDiscount';
 import waitForBatchedUpdates from '../../../../utils/waitForBatchedUpdates';
 
 jest.mock('@libs/Navigation/Navigation');
@@ -20,6 +21,19 @@ jest.mock('@hooks/useLazyAsset', () => ({
 jest.mock('@src/pages/home/TimeSensitiveSection/hooks/useTimeSensitiveAddPaymentCard', () =>
     jest.fn(() => ({
         shouldShowAddPaymentCard: false,
+    })),
+);
+
+jest.mock('@src/pages/home/TimeSensitiveSection/hooks/useTimeSensitiveBilling', () =>
+    jest.fn(() => ({
+        shouldShowFixFailedBilling: false,
+    })),
+);
+
+jest.mock('@src/pages/home/TimeSensitiveSection/hooks/useTimeSensitiveEarlyDiscount', () =>
+    jest.fn(() => ({
+        shouldShowEarlyDiscount: false,
+        discountInfo: null,
     })),
 );
 
@@ -54,6 +68,7 @@ const renderTimeSensitiveSection = () =>
 
 describe('TimeSensitiveSection - ValidateAccount', () => {
     const mockedUseTimeSensitiveAddPaymentCard = jest.mocked(useTimeSensitiveAddPaymentCard);
+    const mockedUseTimeSensitiveEarlyDiscount = jest.mocked(useTimeSensitiveEarlyDiscount);
 
     beforeAll(() => {
         Onyx.init({keys: ONYXKEYS});
@@ -62,6 +77,10 @@ describe('TimeSensitiveSection - ValidateAccount', () => {
     beforeEach(async () => {
         mockedUseTimeSensitiveAddPaymentCard.mockReturnValue({
             shouldShowAddPaymentCard: false,
+        });
+        mockedUseTimeSensitiveEarlyDiscount.mockReturnValue({
+            shouldShowEarlyDiscount: false,
+            discountInfo: null,
         });
         await Onyx.clear();
         await waitForBatchedUpdates();

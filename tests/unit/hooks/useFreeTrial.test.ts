@@ -1,45 +1,34 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import {renderHook} from '@testing-library/react-native';
+import {act, renderHook} from '@testing-library/react-native';
 import Onyx from 'react-native-onyx';
-import useHasTeam2025Pricing from '@hooks/useHasTeam2025Pricing';
-import useSubscriptionPlan from '@hooks/useSubscriptionPlan';
 import {getOwnedPaidPolicies} from '@libs/PolicyUtils';
-import {calculateRemainingFreeTrialDays, doesUserHavePaymentCardAdded, getEarlyDiscountInfo, isUserOnFreeTrial, shouldShowDiscountBanner} from '@libs/SubscriptionUtils';
+import {calculateRemainingFreeTrialDays, doesUserHavePaymentCardAdded, isUserOnFreeTrial} from '@libs/SubscriptionUtils';
+import getHomeEarlyDiscountInfo from '@pages/home/common/getHomeEarlyDiscountInfo';
 import useFreeTrial from '@pages/home/FreeTrialSection/useFreeTrial';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
 import waitForBatchedUpdates from '../../utils/waitForBatchedUpdates';
-
-jest.mock('@hooks/useHasTeam2025Pricing', () => ({
-    __esModule: true,
-    default: jest.fn(() => false),
-}));
-
-jest.mock('@hooks/useSubscriptionPlan', () => ({
-    __esModule: true,
-    default: jest.fn(() => 'corporate'),
-}));
 
 jest.mock('@libs/PolicyUtils', () => ({
     getOwnedPaidPolicies: jest.fn(() => [{id: 'policyID'}]),
 }));
 
 jest.mock('@libs/SubscriptionUtils', () => ({
-    shouldShowDiscountBanner: jest.fn(() => false),
-    getEarlyDiscountInfo: jest.fn(() => null),
     isUserOnFreeTrial: jest.fn(() => false),
     doesUserHavePaymentCardAdded: jest.fn(() => true),
     calculateRemainingFreeTrialDays: jest.fn(() => 0),
 }));
 
-const mockedUseHasTeam2025Pricing = useHasTeam2025Pricing as jest.Mock;
-const mockedUseSubscriptionPlan = useSubscriptionPlan as jest.Mock;
+jest.mock('@pages/home/common/getHomeEarlyDiscountInfo', () => ({
+    __esModule: true,
+    default: jest.fn(() => null),
+}));
+
 const mockedGetOwnedPaidPolicies = getOwnedPaidPolicies as jest.Mock;
-const mockedShouldShowDiscountBanner = shouldShowDiscountBanner as jest.Mock;
-const mockedGetEarlyDiscountInfo = getEarlyDiscountInfo as jest.Mock;
 const mockedIsUserOnFreeTrial = isUserOnFreeTrial as jest.Mock;
 const mockedDoesUserHavePaymentCardAdded = doesUserHavePaymentCardAdded as jest.Mock;
 const mockedCalculateRemainingFreeTrialDays = calculateRemainingFreeTrialDays as jest.Mock;
+const mockedGetHomeEarlyDiscountInfo = getHomeEarlyDiscountInfo as jest.Mock;
 
 describe('useFreeTrial', () => {
     beforeAll(() => {
@@ -50,11 +39,14 @@ describe('useFreeTrial', () => {
         await Onyx.clear();
         await waitForBatchedUpdates();
         jest.clearAllMocks();
+        jest.useRealTimers();
         mockedGetOwnedPaidPolicies.mockReturnValue([{id: 'policyID'}]);
+        mockedGetHomeEarlyDiscountInfo.mockReturnValue(null);
     });
 
     afterEach(async () => {
         await Onyx.clear();
+        jest.useRealTimers();
     });
 
     describe('section visibility', () => {
@@ -95,29 +87,25 @@ describe('useFreeTrial', () => {
 
             expect(result.current.shouldShowFreeTrialSection).toBe(false);
         });
-    });
 
-    describe('discount state - 50% off (first 24 hours)', () => {
-        it('should return discountType 50 when discount banner is active and within first 24 hours', () => {
+        it('should hide the free trial section while the 50% Home time-sensitive row is active', () => {
             mockedIsUserOnFreeTrial.mockReturnValue(true);
             mockedDoesUserHavePaymentCardAdded.mockReturnValue(false);
-            mockedShouldShowDiscountBanner.mockReturnValue(true);
-            mockedGetEarlyDiscountInfo.mockReturnValue({discountType: 50, days: 0, hours: 20, minutes: 30, seconds: 15});
             mockedCalculateRemainingFreeTrialDays.mockReturnValue(30);
+            mockedGetHomeEarlyDiscountInfo.mockReturnValue({discountType: 50, days: 0, hours: 20, minutes: 30, seconds: 15});
 
             const {result} = renderHook(() => useFreeTrial());
 
-            expect(result.current.shouldShowFreeTrialSection).toBe(true);
+            expect(result.current.shouldShowFreeTrialSection).toBe(false);
             expect(result.current.discountType).toBe(50);
         });
     });
 
-    describe('discount state - 25% off (days 2-7)', () => {
-        it('should return discountType 25 when discount banner is active and past first 24 hours', () => {
+    describe('discount state', () => {
+        it('should return discountType 25 when the Home discount is in the 25% phase', () => {
             mockedIsUserOnFreeTrial.mockReturnValue(true);
             mockedDoesUserHavePaymentCardAdded.mockReturnValue(false);
-            mockedShouldShowDiscountBanner.mockReturnValue(true);
-            mockedGetEarlyDiscountInfo.mockReturnValue({discountType: 25, days: 5, hours: 12, minutes: 0, seconds: 0});
+            mockedGetHomeEarlyDiscountInfo.mockReturnValue({discountType: 25, days: 5, hours: 12, minutes: 0, seconds: 0});
             mockedCalculateRemainingFreeTrialDays.mockReturnValue(25);
 
             const {result} = renderHook(() => useFreeTrial());
@@ -125,14 +113,11 @@ describe('useFreeTrial', () => {
             expect(result.current.shouldShowFreeTrialSection).toBe(true);
             expect(result.current.discountType).toBe(25);
         });
-    });
 
-    describe('no discount (days 8-30)', () => {
         it('should return discountType null when no discount is available but trial is active', () => {
             mockedIsUserOnFreeTrial.mockReturnValue(true);
             mockedDoesUserHavePaymentCardAdded.mockReturnValue(false);
-            mockedShouldShowDiscountBanner.mockReturnValue(false);
-            mockedGetEarlyDiscountInfo.mockReturnValue(null);
+            mockedGetHomeEarlyDiscountInfo.mockReturnValue(null);
             mockedCalculateRemainingFreeTrialDays.mockReturnValue(10);
 
             const {result} = renderHook(() => useFreeTrial());
@@ -155,23 +140,22 @@ describe('useFreeTrial', () => {
     });
 
     describe('discountInfo', () => {
-        it('should return discount info from getEarlyDiscountInfo when on trial', () => {
+        it('should return discount info from getHomeEarlyDiscountInfo when on trial', () => {
             mockedIsUserOnFreeTrial.mockReturnValue(true);
             mockedDoesUserHavePaymentCardAdded.mockReturnValue(false);
-            mockedShouldShowDiscountBanner.mockReturnValue(true);
             mockedCalculateRemainingFreeTrialDays.mockReturnValue(5);
-            mockedGetEarlyDiscountInfo.mockReturnValue({discountType: 50, days: 0, hours: 23, minutes: 59, seconds: 30});
+            mockedGetHomeEarlyDiscountInfo.mockReturnValue({discountType: 50, days: 0, hours: 23, minutes: 59, seconds: 30});
 
             const {result} = renderHook(() => useFreeTrial());
 
             expect(result.current.discountInfo).toEqual({discountType: 50, days: 0, hours: 23, minutes: 59, seconds: 30});
         });
 
-        it('should return null for discountInfo when getEarlyDiscountInfo returns null', () => {
+        it('should return null for discountInfo when getHomeEarlyDiscountInfo returns null', () => {
             mockedIsUserOnFreeTrial.mockReturnValue(true);
             mockedDoesUserHavePaymentCardAdded.mockReturnValue(false);
             mockedCalculateRemainingFreeTrialDays.mockReturnValue(5);
-            mockedGetEarlyDiscountInfo.mockReturnValue(null);
+            mockedGetHomeEarlyDiscountInfo.mockReturnValue(null);
 
             const {result} = renderHook(() => useFreeTrial());
 
@@ -211,7 +195,7 @@ describe('useFreeTrial', () => {
             expect(mockedDoesUserHavePaymentCardAdded).toHaveBeenCalledWith(userBillingFundID);
         });
 
-        it('should call shouldShowDiscountBanner with correct parameters', async () => {
+        it('should call getHomeEarlyDiscountInfo with the Home trial data', async () => {
             const firstDayFreeTrial = '2026-03-01 00:00:00';
             const lastDayFreeTrial = '2026-03-31 00:00:00';
             const userBillingFundID = 12345;
@@ -221,13 +205,11 @@ describe('useFreeTrial', () => {
             await Onyx.merge(ONYXKEYS.NVP_BILLING_FUND_ID, userBillingFundID);
             await waitForBatchedUpdates();
 
-            mockedUseHasTeam2025Pricing.mockReturnValue(true);
-            mockedUseSubscriptionPlan.mockReturnValue('team');
             mockedIsUserOnFreeTrial.mockReturnValue(false);
 
             renderHook(() => useFreeTrial());
 
-            expect(mockedShouldShowDiscountBanner).toHaveBeenCalledWith(CONST.DEFAULT_NUMBER_ID, true, 'team', firstDayFreeTrial, lastDayFreeTrial, userBillingFundID, {});
+            expect(mockedGetHomeEarlyDiscountInfo).toHaveBeenCalledWith(CONST.DEFAULT_NUMBER_ID, firstDayFreeTrial, lastDayFreeTrial, userBillingFundID, {});
         });
 
         it('should call calculateRemainingFreeTrialDays with lastDayFreeTrial', async () => {
@@ -246,41 +228,27 @@ describe('useFreeTrial', () => {
         });
     });
 
-    describe('discount type exclusivity', () => {
-        it('should return discountType 50 and not 25 when discountType is 50', () => {
+    describe('discount transitions', () => {
+        it('should show the free trial section again once the 50% window becomes 25%', () => {
+            jest.useFakeTimers();
             mockedIsUserOnFreeTrial.mockReturnValue(true);
             mockedDoesUserHavePaymentCardAdded.mockReturnValue(false);
-            mockedShouldShowDiscountBanner.mockReturnValue(true);
-            mockedGetEarlyDiscountInfo.mockReturnValue({discountType: 50, days: 0, hours: 20, minutes: 0, seconds: 0});
             mockedCalculateRemainingFreeTrialDays.mockReturnValue(30);
+            mockedGetHomeEarlyDiscountInfo
+                .mockReturnValueOnce({discountType: 50, days: 0, hours: 0, minutes: 0, seconds: 1})
+                .mockReturnValue({discountType: 25, days: 6, hours: 23, minutes: 59, seconds: 59});
 
             const {result} = renderHook(() => useFreeTrial());
 
+            expect(result.current.shouldShowFreeTrialSection).toBe(false);
             expect(result.current.discountType).toBe(50);
-        });
 
-        it('should return discountType 25 and not 50 when discountType is 25', () => {
-            mockedIsUserOnFreeTrial.mockReturnValue(true);
-            mockedDoesUserHavePaymentCardAdded.mockReturnValue(false);
-            mockedShouldShowDiscountBanner.mockReturnValue(true);
-            mockedGetEarlyDiscountInfo.mockReturnValue({discountType: 25, days: 5, hours: 0, minutes: 0, seconds: 0});
-            mockedCalculateRemainingFreeTrialDays.mockReturnValue(25);
+            act(() => {
+                jest.advanceTimersByTime(CONST.MILLISECONDS_PER_SECOND);
+            });
 
-            const {result} = renderHook(() => useFreeTrial());
-
+            expect(result.current.shouldShowFreeTrialSection).toBe(true);
             expect(result.current.discountType).toBe(25);
-        });
-
-        it('should return discountType null when discount banner should not be shown', () => {
-            mockedIsUserOnFreeTrial.mockReturnValue(true);
-            mockedDoesUserHavePaymentCardAdded.mockReturnValue(false);
-            mockedShouldShowDiscountBanner.mockReturnValue(false);
-            mockedGetEarlyDiscountInfo.mockReturnValue({discountType: 50, days: 0, hours: 20, minutes: 0, seconds: 0});
-            mockedCalculateRemainingFreeTrialDays.mockReturnValue(30);
-
-            const {result} = renderHook(() => useFreeTrial());
-
-            expect(result.current.discountType).toBeNull();
         });
     });
 });
