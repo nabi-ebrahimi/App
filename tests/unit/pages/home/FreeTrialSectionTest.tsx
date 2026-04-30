@@ -95,9 +95,9 @@ const mockedUseFreeTrial = jest.mocked(useFreeTrial);
 const mockedFormatCountdownTimer = jest.mocked(DateUtils.formatCountdownTimer);
 const defaultFreeTrialState: FreeTrialState = {
     shouldShowFreeTrialSection: true,
-    discountType: 50,
+    discountType: null,
     daysLeft: 10,
-    discountInfo: {discountType: 50, days: 0, hours: 12, minutes: 34, seconds: 56},
+    discountInfo: null,
 };
 
 const renderFreeTrialSection = () => render(<FreeTrialSection />);
@@ -109,11 +109,12 @@ describe('FreeTrialSection', () => {
         mockedUseFreeTrial.mockReturnValue(defaultFreeTrialState);
     });
 
-    it('renders the timer subtitle for the 50% discount phase', () => {
+    it('renders the generic add-card state when no discount offer is active', () => {
         const {toJSON} = renderFreeTrialSection();
 
-        expect(JSON.stringify(toJSON())).toContain('Time remaining: 12:34:56');
-        expect(mockedFormatCountdownTimer).toHaveBeenCalledTimes(1);
+        expect(JSON.stringify(toJSON())).toContain("Don't wait! Add your payment card now.");
+        expect(JSON.stringify(toJSON())).toContain('Add card');
+        expect(mockedFormatCountdownTimer).not.toHaveBeenCalled();
     });
 
     it('renders the day-based subtitle for the 25% discount phase while full days remain', () => {
@@ -129,7 +130,7 @@ describe('FreeTrialSection', () => {
         expect(mockedFormatCountdownTimer).not.toHaveBeenCalled();
     });
 
-    it('falls back to the timer subtitle for the 25% discount phase once less than one day remains', () => {
+    it('renders the timer subtitle for the 25% discount phase once less than one day remains', () => {
         mockedUseFreeTrial.mockReturnValue({
             ...defaultFreeTrialState,
             discountType: 25,
@@ -142,17 +143,14 @@ describe('FreeTrialSection', () => {
         expect(mockedFormatCountdownTimer).toHaveBeenCalledTimes(1);
     });
 
-    it('does not render a subtitle when no discount is available', () => {
+    it('does not render the section when the hook hides it', () => {
         mockedUseFreeTrial.mockReturnValue({
             ...defaultFreeTrialState,
-            discountType: null,
-            discountInfo: null,
+            shouldShowFreeTrialSection: false,
         });
 
         const {toJSON} = renderFreeTrialSection();
 
-        expect(JSON.stringify(toJSON())).not.toContain('Time remaining: 12:34:56');
-        expect(JSON.stringify(toJSON())).not.toContain('Time remaining: 3 days');
-        expect(mockedFormatCountdownTimer).not.toHaveBeenCalled();
+        expect(toJSON()).toBeNull();
     });
 });

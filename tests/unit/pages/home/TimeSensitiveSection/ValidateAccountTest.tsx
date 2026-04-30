@@ -34,6 +34,13 @@ jest.mock('@src/pages/home/TimeSensitiveSection/hooks/useTimeSensitiveCards', ()
     })),
 );
 
+jest.mock('@src/pages/home/TimeSensitiveSection/hooks/useTimeSensitiveEarlyDiscount', () =>
+    jest.fn(() => ({
+        discountInfo: null,
+        shouldShowEarlyDiscount: false,
+    })),
+);
+
 jest.mock('@hooks/useCardFeedErrors', () =>
     jest.fn(() => ({
         cardsWithBrokenFeedConnection: {},

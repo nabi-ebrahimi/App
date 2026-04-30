@@ -44,7 +44,6 @@ function useFreeTrial(): FreeTrialState {
     const hasOwnedPaidPolicies = getOwnedPaidPolicies(allPolicies, accountID).length > 0;
     const showDiscount = shouldShowDiscountBanner(accountID, hasTeam2025Pricing, subscriptionPlan, firstDayFreeTrial, lastDayFreeTrial, userBillingFundID, allPolicies);
     const daysLeft = calculateRemainingFreeTrialDays(lastDayFreeTrial);
-
     const [discountInfo, setDiscountInfo] = useState<DiscountInfo | null>(() => (showDiscount ? getEarlyDiscountInfo(firstDayFreeTrial) : null));
 
     useEffect(() => {
