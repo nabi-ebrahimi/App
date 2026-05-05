@@ -39,15 +39,36 @@ function SearchSingleSelectionPicker({
     const [searchTerm, debouncedSearchTerm, setSearchTerm] = useDebouncedState('');
     const [selectedItem, setSelectedItem] = useState<SearchSingleSelectionPickerItem | undefined>(initiallySelectedItem);
 
+    const getKeyForList = (item: SearchSingleSelectionPickerItem) => item.value || item.name;
+
+    const sortItems = (a: SearchSingleSelectionPickerItem, b: SearchSingleSelectionPickerItem) => {
+        if (a.value === '' && b.value !== '') {
+            return -1;
+        }
+        if (a.value !== '' && b.value === '') {
+            return 1;
+        }
+        return sortOptionsWithEmptyValue(a.name.toString(), b.name.toString(), localeCompare);
+    };
+
     useEffect(() => {
         setSelectedItem(initiallySelectedItem);
     }, [initiallySelectedItem]);
 
-    const initiallySelectedItemSection = initiallySelectedItem?.name.toLowerCase().includes(debouncedSearchTerm?.toLowerCase())
+    const emptyValueItemsSection = items
+        .filter((item) => item.value === '' && item.name.toLowerCase().includes(debouncedSearchTerm?.toLowerCase()))
+        .map((item) => ({
+            text: item.name,
+            keyForList: getKeyForList(item),
+            isSelected: selectedItem?.value === item.value,
+            value: item.value,
+        }));
+
+    const initiallySelectedItemSection = initiallySelectedItem?.value !== '' && initiallySelectedItem?.name.toLowerCase().includes(debouncedSearchTerm?.toLowerCase())
         ? [
               {
                   text: initiallySelectedItem.name,
-                  keyForList: initiallySelectedItem.value,
+                  keyForList: getKeyForList(initiallySelectedItem),
                   isSelected: selectedItem?.value === initiallySelectedItem.value,
                   value: initiallySelectedItem.value,
               },
@@ -55,34 +76,39 @@ function SearchSingleSelectionPicker({
         : [];
 
     const remainingItemsSection = items
-        .filter((item) => item.value !== initiallySelectedItem?.value && item.name.toLowerCase().includes(debouncedSearchTerm?.toLowerCase()))
-        .sort((a, b) => sortOptionsWithEmptyValue(a.name.toString(), b.name.toString(), localeCompare))
+        .filter((item) => item.value !== '' && item.value !== initiallySelectedItem?.value && item.name.toLowerCase().includes(debouncedSearchTerm?.toLowerCase()))
+        .sort(sortItems)
         .map((item) => ({
             text: item.name,
-            keyForList: item.value,
+            keyForList: getKeyForList(item),
             isSelected: selectedItem?.value === item.value,
             value: item.value,
         }));
 
-    const noResultsFound = !initiallySelectedItemSection.length && !remainingItemsSection.length;
+    const noResultsFound = !emptyValueItemsSection.length && !initiallySelectedItemSection.length && !remainingItemsSection.length;
 
     const sections = noResultsFound
         ? []
         : [
               {
                   title: undefined,
-                  data: initiallySelectedItemSection,
+                  data: emptyValueItemsSection,
                   sectionIndex: 0,
+              },
+              {
+                  title: undefined,
+                  data: initiallySelectedItemSection,
+                  sectionIndex: 1,
               },
               {
                   title: pickerTitle,
                   data: remainingItemsSection,
-                  sectionIndex: 1,
+                  sectionIndex: 2,
               },
           ];
 
     const onSelectItem = (item: Partial<OptionData & SearchSingleSelectionPickerItem>) => {
-        if (!item.text || !item.keyForList || !item.value) {
+        if (!item.text || item.keyForList === undefined || item.value === undefined) {
             return;
         }
         if (shouldAutoSave) {
@@ -123,7 +149,7 @@ function SearchSingleSelectionPicker({
             sections={sections}
             onSelectRow={onSelectItem}
             ListItem={SingleSelectListItem}
-            initiallyFocusedItemKey={initiallySelectedItem?.value}
+            initiallyFocusedItemKey={initiallySelectedItem ? getKeyForList(initiallySelectedItem) : undefined}
             shouldShowTextInput={shouldShowTextInput}
             textInputOptions={textInputOptions}
             footerContent={shouldAutoSave ? undefined : footerContent}

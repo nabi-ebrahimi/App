@@ -1,6 +1,7 @@
 import React, {useMemo} from 'react';
 import type {ValueOf} from 'type-fest';
 import RuleSelectionBase from '@components/Rule/RuleSelectionBase';
+import useLocalize from '@hooks/useLocalize';
 import useOnyx from '@hooks/useOnyx';
 import {updateDraftMerchantRule} from '@libs/actions/User';
 import Navigation from '@libs/Navigation/Navigation';
@@ -19,6 +20,7 @@ type AddTagPageProps = PlatformStackScreenProps<SettingsNavigatorParamList, type
 
 function AddTagPage({route}: AddTagPageProps) {
     const {policyID, ruleID, orderWeight} = route.params;
+    const {translate} = useLocalize();
     const isEditing = ruleID !== ROUTES.NEW;
 
     const [form] = useOnyx(ONYXKEYS.FORMS.MERCHANT_RULE_FORM);
@@ -29,7 +31,7 @@ function AddTagPage({route}: AddTagPageProps) {
     const formTag = formTags.at(orderWeight);
 
     const tagItems = useMemo(() => {
-        const tags: Array<{name: string; value: string}> = [];
+        const tags: Array<{name: string; value: string}> = [{name: translate('common.none'), value: ''}];
 
         for (const tag of Object.values(tagList?.tags ?? {})) {
             if (tag.name !== formTag && !tag.enabled) {
@@ -39,9 +41,9 @@ function AddTagPage({route}: AddTagPageProps) {
         }
 
         return tags;
-    }, [tagList?.tags, formTag]);
+    }, [tagList?.tags, formTag, translate]);
 
-    const selectedTagItem = tagItems.find(({value}) => value === formTag);
+    const selectedTagItem = tagItems.find(({value}) => value === (formTag ?? ''));
 
     const backToRoute = isEditing ? ROUTES.RULES_MERCHANT_EDIT.getRoute(policyID, ruleID) : ROUTES.RULES_MERCHANT_NEW.getRoute(policyID);
 
