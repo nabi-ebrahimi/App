@@ -154,7 +154,7 @@ function useSearchPageInput({queryJSON, onSearch, onSubmit}: UseSearchPageInputP
         setTextInputValue(updatedUserQuery);
         setAutocompleteQueryValue(updatedUserQuery);
 
-        const updatedSubstitutionsMap = getUpdatedSubstitutionsMap(singleLineUserQuery, autocompleteSubstitutions);
+        const updatedSubstitutionsMap = getUpdatedSubstitutionsMap(singleLineUserQuery, autocompleteSubstitutions, currentUserAccountID);
         if (!deepEqual(autocompleteSubstitutions, updatedSubstitutionsMap)) {
             setAutocompleteSubstitutions(updatedSubstitutionsMap);
         }

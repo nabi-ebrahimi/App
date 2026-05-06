@@ -1,5 +1,6 @@
 import type {SearchAutocompleteQueryRange} from '@components/Search/types';
 import {parse} from '@libs/SearchParser/autocompleteParser';
+import CONST from '@src/CONST';
 import type {SubstitutionMap} from './getQueryWithSubstitutions';
 import {getSubstitutionMapKeyWithIndex} from './getQueryWithSubstitutions';
 
@@ -16,7 +17,7 @@ import {getSubstitutionMapKeyWithIndex} from './getQueryWithSubstitutions';
  * }
  * return: {}
  */
-function getUpdatedSubstitutionsMap(query: string, substitutions: SubstitutionMap): SubstitutionMap {
+function getUpdatedSubstitutionsMap(query: string, substitutions: SubstitutionMap, currentUserAccountID?: number): SubstitutionMap {
     const parsedQuery = parse(query) as {ranges: SearchAutocompleteQueryRange[]};
 
     const searchAutocompleteQueryRanges = parsedQuery.ranges;
@@ -39,6 +40,18 @@ function getUpdatedSubstitutionsMap(query: string, substitutions: SubstitutionMa
         if (value) {
             updatedSubstitutionMap[fullKey] = value;
         }
+    }
+
+    if (!currentUserAccountID || currentUserAccountID <= 0) {
+        return updatedSubstitutionMap;
+    }
+
+    for (const range of searchAutocompleteQueryRanges) {
+        if (range.key !== CONST.SEARCH.SYNTAX_FILTER_KEYS.FROM || range.value !== CONST.SEARCH.ME) {
+            continue;
+        }
+
+        updatedSubstitutionMap[getSubstitutionMapKeyWithIndex(range.key, range.value, 0)] = currentUserAccountID.toString();
     }
 
     return updatedSubstitutionMap;
