@@ -57,6 +57,9 @@ type DropdownOption<TValueType> = WithSentryLabel & {
 
     /** Whether to ignore compact popover menu styling for this item */
     shouldIgnoreCompactStyle?: boolean;
+
+    /** Whether to show a divider above this option in the popover menu */
+    shouldShowDivider?: boolean;
 };
 
 type ButtonWithDropdownMenuProps<TValueType> = WithSentryLabel & {

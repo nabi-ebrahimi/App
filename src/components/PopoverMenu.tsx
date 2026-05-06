@@ -84,6 +84,9 @@ type PopoverMenuItem = MenuItemProps & {
     /** Whether to close the modal on select */
     shouldCloseModalOnSelect?: boolean;
 
+    /** Whether to show a divider above this menu item */
+    shouldShowDivider?: boolean;
+
     /** Additional data for the menu item */
     additionalData?: Record<string, unknown>;
 };
@@ -441,6 +444,7 @@ function BasePopoverMenu({
             testID: menuItemTestID,
             shouldShowLoadingSpinnerIcon,
             badgeText,
+            shouldShowDivider,
             ...menuItemProps
         } = item;
         const icon = typeof item.icon === 'string' ? expensifyIcons[item.icon as keyof typeof expensifyIcons] : item.icon;
@@ -449,10 +453,9 @@ function BasePopoverMenu({
         // In radio-button mode, suppress visual focus highlight until the user starts keyboard navigation.
         const isVisuallyFocused = focusedIndex === menuIndex && (!isRadioButtonMode || hasKeyBeenPressed);
         return (
-            <OfflineWithFeedback
-                key={reactKey}
-                pendingAction={item.pendingAction}
-            >
+            <React.Fragment key={reactKey}>
+                {!!shouldShowDivider && <View style={[styles.sectionDividerLine, styles.mh4, styles.mv3]} />}
+                <OfflineWithFeedback pendingAction={item.pendingAction}>
                 <FocusableMenuItem
                     key={reactKey}
                     pressableTestID={menuItemTestID ?? `PopoverMenuItem-${item.text}`}
@@ -491,7 +494,8 @@ function BasePopoverMenu({
                     hasSubMenuItems={!!subMenuItems?.length}
                     shouldShowLoadingSpinnerIcon={shouldShowLoadingSpinnerIcon}
                 />
-            </OfflineWithFeedback>
+                </OfflineWithFeedback>
+            </React.Fragment>
         );
     });
 

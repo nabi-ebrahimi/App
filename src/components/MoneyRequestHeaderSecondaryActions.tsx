@@ -65,6 +65,7 @@ import ROUTES from '@src/ROUTES';
 import SCREENS from '@src/SCREENS';
 import type {Transaction} from '@src/types/onyx';
 import ButtonWithDropdownMenu from './ButtonWithDropdownMenu';
+import getSectionedMenuItems from './getSectionedMenuItems';
 import type {ButtonWithDropdownMenuRef, DropdownOption} from './ButtonWithDropdownMenu/types';
 import {useDelegateNoAccessActions, useDelegateNoAccessState} from './DelegateNoAccessModalProvider';
 import HoldOrRejectEducationalModal from './HoldOrRejectEducationalModal';
@@ -81,6 +82,20 @@ type MoneyRequestHeaderSecondaryActionsProps = {
     /** Method to trigger when pressing close button of the header */
     onBackButtonPress: (prioritizeBackTo?: boolean) => void;
 };
+
+type TransactionSecondaryAction = ValueOf<typeof CONST.REPORT.TRANSACTION_SECONDARY_ACTIONS>;
+
+const TRANSACTION_MORE_MENU_ACTION_SECTIONS = [
+    [
+        CONST.REPORT.TRANSACTION_SECONDARY_ACTIONS.HOLD,
+        CONST.REPORT.TRANSACTION_SECONDARY_ACTIONS.REMOVE_HOLD,
+        CONST.REPORT.TRANSACTION_SECONDARY_ACTIONS.REJECT,
+        CONST.REPORT.TRANSACTION_SECONDARY_ACTIONS.SPLIT,
+        CONST.REPORT.TRANSACTION_SECONDARY_ACTIONS.MERGE,
+    ],
+    [CONST.REPORT.TRANSACTION_SECONDARY_ACTIONS.DUPLICATE, CONST.REPORT.TRANSACTION_SECONDARY_ACTIONS.MOVE_EXPENSE],
+    [CONST.REPORT.TRANSACTION_SECONDARY_ACTIONS.VIEW_DETAILS, CONST.REPORT.TRANSACTION_SECONDARY_ACTIONS.DELETE],
+] as const satisfies ReadonlyArray<readonly TransactionSecondaryAction[]>;
 
 function MoneyRequestHeaderSecondaryActions({reportID, onBackButtonPress}: MoneyRequestHeaderSecondaryActionsProps) {
     // eslint-disable-next-line rulesdir/prefer-shouldUseNarrowLayout-instead-of-isSmallScreenWidth
@@ -501,7 +516,7 @@ function MoneyRequestHeaderSecondaryActions({reportID, onBackButtonPress}: Money
         },
     };
 
-    const applicableSecondaryActions = secondaryActions.map((action) => secondaryActionsImplementation[action]).filter((action): action is NonNullable<typeof action> => !!action);
+    const applicableSecondaryActions = getSectionedMenuItems(secondaryActions, TRANSACTION_MORE_MENU_ACTION_SECTIONS, (action) => secondaryActionsImplementation[action]);
 
     if (!applicableSecondaryActions.length) {
         return null;

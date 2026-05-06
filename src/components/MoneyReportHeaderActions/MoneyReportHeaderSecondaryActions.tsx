@@ -7,6 +7,7 @@ import {InteractionManager, View} from 'react-native';
 import type {ValueOf} from 'type-fest';
 import Button from '@components/Button';
 import type {ButtonWithDropdownMenuRef} from '@components/ButtonWithDropdownMenu/types';
+import getSectionedMenuItems from '@components/getSectionedMenuItems';
 import {useDelegateNoAccessActions, useDelegateNoAccessState} from '@components/DelegateNoAccessModalProvider';
 import {KYCWallContext} from '@components/KYCWall/KYCWallContext';
 import MoneyReportHeaderKYCDropdown from '@components/MoneyReportHeaderKYCDropdown';
@@ -73,6 +74,37 @@ type MoneyReportHeaderSecondaryActionsProps = {
     backTo?: Route;
     dropdownMenuRef?: React.RefObject<ButtonWithDropdownMenuRef>;
 };
+
+type ReportSecondaryAction = ValueOf<typeof CONST.REPORT.SECONDARY_ACTIONS>;
+
+const REPORT_MORE_MENU_ACTION_SECTIONS = [
+    [
+        CONST.REPORT.SECONDARY_ACTIONS.ADD_EXPENSE,
+        CONST.REPORT.SECONDARY_ACTIONS.HOLD,
+        CONST.REPORT.SECONDARY_ACTIONS.REMOVE_HOLD,
+        CONST.REPORT.SECONDARY_ACTIONS.SUBMIT,
+        CONST.REPORT.SECONDARY_ACTIONS.RETRACT,
+        CONST.REPORT.SECONDARY_ACTIONS.REOPEN,
+        CONST.REPORT.SECONDARY_ACTIONS.REJECT,
+        CONST.REPORT.SECONDARY_ACTIONS.APPROVE,
+        CONST.REPORT.SECONDARY_ACTIONS.UNAPPROVE,
+        CONST.REPORT.SECONDARY_ACTIONS.CANCEL_PAYMENT,
+        CONST.REPORT.SECONDARY_ACTIONS.PAY,
+    ],
+    [
+        CONST.REPORT.SECONDARY_ACTIONS.SPLIT,
+        CONST.REPORT.SECONDARY_ACTIONS.MERGE,
+        CONST.REPORT.SECONDARY_ACTIONS.DUPLICATE_EXPENSE,
+        CONST.REPORT.SECONDARY_ACTIONS.MOVE_EXPENSE,
+    ],
+    [
+        CONST.REPORT.SECONDARY_ACTIONS.DUPLICATE_REPORT,
+        CONST.REPORT.SECONDARY_ACTIONS.CHANGE_WORKSPACE,
+        CONST.REPORT.SECONDARY_ACTIONS.CHANGE_APPROVER,
+    ],
+    [CONST.REPORT.SECONDARY_ACTIONS.EXPORT, CONST.REPORT.SECONDARY_ACTIONS.DOWNLOAD_PDF, CONST.REPORT.SECONDARY_ACTIONS.PRINT],
+    [CONST.REPORT.SECONDARY_ACTIONS.VIEW_DETAILS, CONST.REPORT.SECONDARY_ACTIONS.DELETE],
+] as const satisfies ReadonlyArray<readonly ReportSecondaryAction[]>;
 
 function MoneyReportHeaderSecondaryActionsInner({reportID, primaryAction, isReportInSearch, backTo, dropdownMenuRef}: MoneyReportHeaderSecondaryActionsProps) {
     const {isPaidAnimationRunning, isApprovedAnimationRunning, startAnimation, startApprovedAnimation, startSubmittingAnimation} = usePaymentAnimationsContext();
@@ -358,9 +390,7 @@ function MoneyReportHeaderSecondaryActionsInner({reportID, primaryAction, isRepo
         },
     };
 
-    const applicableSecondaryActions = secondaryActions
-        .map((action) => secondaryActionsImplementation[action])
-        .filter((action) => action?.shouldShow !== false && action?.value !== primaryAction);
+    const applicableSecondaryActions = getSectionedMenuItems(secondaryActions, REPORT_MORE_MENU_ACTION_SECTIONS, (action) => secondaryActionsImplementation[action], primaryAction);
 
     const hasViolations = hasViolationsReportUtils(moneyRequestReport?.reportID, allTransactionViolations, accountID, email ?? '');
 
