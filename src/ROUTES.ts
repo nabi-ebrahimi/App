@@ -966,6 +966,7 @@ const ROUTES = {
             // eslint-disable-next-line no-restricted-syntax -- Legacy route generation
             getUrlWithBackToParam(forwardTo ? `settings/security/two-factor-auth/success?forwardTo=${encodeURIComponent(forwardTo)}` : 'settings/security/two-factor-auth/success', backTo),
     },
+    // testing signature and commit badge
     SETTINGS_2FA_DISABLED: 'settings/security/two-factor-auth/disabled',
     SETTINGS_2FA_DISABLE: 'settings/security/two-factor-auth/disable',
     SETTINGS_2FA_REPLACE_VERIFY_OLD: 'settings/security/two-factor-auth/replace/verify-old',
