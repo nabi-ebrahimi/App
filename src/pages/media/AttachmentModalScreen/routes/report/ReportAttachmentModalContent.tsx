@@ -6,6 +6,7 @@ import useOnyx from '@hooks/useOnyx';
 import useOriginalReportID from '@hooks/useOriginalReportID';
 import {openReport} from '@libs/actions/Report';
 import {getValidatedImageSource} from '@libs/AvatarUtils';
+import {getFileName} from '@libs/fileDownload/FileUtils';
 import Navigation from '@libs/Navigation/Navigation';
 import {isReportNotFound} from '@libs/ReportUtils';
 import type {AttachmentModalBaseContentProps} from '@pages/media/AttachmentModalScreen/AttachmentModalBaseContent/types';
@@ -95,6 +96,7 @@ function ReportAttachmentModalContent({route, navigation}: AttachmentModalScreen
     // Skip API root normalization for search attachments because this route is only opened from preview,
     // which already passes a resolved source. Keep normalization for other types to support email entry points.
     const source = getValidatedImageSource(sourceParam, type !== CONST.ATTACHMENT_TYPE.SEARCH);
+    const fileName = originalFileName ?? (typeof source === 'string' ? getFileName(source) : '');
     const modalType = useReportAttachmentModalType(source);
 
     const shouldShowNotFoundPage = !isLoading && type !== CONST.ATTACHMENT_TYPE.SEARCH && !report?.reportID;
@@ -106,7 +108,7 @@ function ReportAttachmentModalContent({route, navigation}: AttachmentModalScreen
         shouldShowNotFoundPage,
         isAuthTokenRequired: !!isAuthTokenRequired,
         attachmentLink: attachmentLink ?? '',
-        originalFileName: originalFileName ?? '',
+        originalFileName: fileName,
         isLoading,
         source,
         attachmentID,
