@@ -23,7 +23,10 @@ type SearchSingleSelectionPickerProps = {
     backToRoute?: Route;
     shouldAutoSave?: boolean;
     shouldShowTextInput?: boolean;
+    shouldShowNoneOption?: boolean;
 };
+
+const NONE_OPTION_KEY = '__none__';
 
 function SearchSingleSelectionPicker({
     items,
@@ -33,13 +36,15 @@ function SearchSingleSelectionPicker({
     backToRoute,
     shouldAutoSave,
     shouldShowTextInput = true,
+    shouldShowNoneOption = false,
 }: SearchSingleSelectionPickerProps) {
     const {translate, localeCompare} = useLocalize();
 
     const [searchTerm, debouncedSearchTerm, setSearchTerm] = useDebouncedState('');
     const [selectedItem, setSelectedItem] = useState<SearchSingleSelectionPickerItem | undefined>(initiallySelectedItem);
+    const noneOptionName = translate('common.none');
 
-    const getKeyForList = (item: SearchSingleSelectionPickerItem) => item.value || item.name;
+    const getKeyForList = (item: SearchSingleSelectionPickerItem) => item.value || item.name || NONE_OPTION_KEY;
 
     const sortItems = (a: SearchSingleSelectionPickerItem, b: SearchSingleSelectionPickerItem) => {
         if (a.value === '' && b.value !== '') {
@@ -55,7 +60,7 @@ function SearchSingleSelectionPicker({
         setSelectedItem(initiallySelectedItem);
     }, [initiallySelectedItem]);
 
-    const emptyValueItemsSection = items
+    const emptyValueItemsSection = (shouldShowNoneOption ? [] : items)
         .filter((item) => item.value === '' && item.name.toLowerCase().includes(debouncedSearchTerm?.toLowerCase()))
         .map((item) => ({
             text: item.name,
@@ -63,17 +68,29 @@ function SearchSingleSelectionPicker({
             isSelected: selectedItem?.value === item.value,
             value: item.value,
         }));
+    const noneItemSection =
+        shouldShowNoneOption && noneOptionName.toLowerCase().includes(debouncedSearchTerm?.toLowerCase())
+            ? [
+                  {
+                      text: noneOptionName,
+                      keyForList: NONE_OPTION_KEY,
+                      isSelected: selectedItem?.value === '' || (!selectedItem && !initiallySelectedItem),
+                      value: '',
+                  },
+              ]
+            : [];
 
-    const initiallySelectedItemSection = initiallySelectedItem?.value !== '' && initiallySelectedItem?.name.toLowerCase().includes(debouncedSearchTerm?.toLowerCase())
-        ? [
-              {
-                  text: initiallySelectedItem.name,
-                  keyForList: getKeyForList(initiallySelectedItem),
-                  isSelected: selectedItem?.value === initiallySelectedItem.value,
-                  value: initiallySelectedItem.value,
-              },
-          ]
-        : [];
+    const initiallySelectedItemSection =
+        initiallySelectedItem?.value !== '' && initiallySelectedItem?.name.toLowerCase().includes(debouncedSearchTerm?.toLowerCase())
+            ? [
+                  {
+                      text: initiallySelectedItem.name,
+                      keyForList: getKeyForList(initiallySelectedItem),
+                      isSelected: selectedItem?.value === initiallySelectedItem.value,
+                      value: initiallySelectedItem.value,
+                  },
+              ]
+            : [];
 
     const remainingItemsSection = items
         .filter((item) => item.value !== '' && item.value !== initiallySelectedItem?.value && item.name.toLowerCase().includes(debouncedSearchTerm?.toLowerCase()))
@@ -85,14 +102,15 @@ function SearchSingleSelectionPicker({
             value: item.value,
         }));
 
-    const noResultsFound = !emptyValueItemsSection.length && !initiallySelectedItemSection.length && !remainingItemsSection.length;
+    const topItemsSection = [...noneItemSection, ...emptyValueItemsSection];
+    const noResultsFound = !topItemsSection.length && !initiallySelectedItemSection.length && !remainingItemsSection.length;
 
     const sections = noResultsFound
         ? []
         : [
               {
                   title: undefined,
-                  data: emptyValueItemsSection,
+                  data: topItemsSection,
                   sectionIndex: 0,
               },
               {
@@ -108,7 +126,7 @@ function SearchSingleSelectionPicker({
           ];
 
     const onSelectItem = (item: Partial<OptionData & SearchSingleSelectionPickerItem>) => {
-        if (!item.text || item.keyForList === undefined || item.value === undefined) {
+        if (!item.text || item.keyForList === undefined || item.keyForList === null || item.value === undefined || item.value === null) {
             return;
         }
         if (shouldAutoSave) {
@@ -143,13 +161,15 @@ function SearchSingleSelectionPicker({
         onChangeText: setSearchTerm,
         headerMessage: noResultsFound ? translate('common.noResultsFound') : undefined,
     };
+    const initiallyFocusedItemKey = initiallySelectedItem?.value === '' && shouldShowNoneOption ? NONE_OPTION_KEY : initiallySelectedItem ? getKeyForList(initiallySelectedItem) : undefined;
+    const focusedItemKey = initiallyFocusedItemKey ?? (shouldShowNoneOption ? NONE_OPTION_KEY : undefined);
 
     return (
         <SelectionListWithSections
             sections={sections}
             onSelectRow={onSelectItem}
             ListItem={SingleSelectListItem}
-            initiallyFocusedItemKey={initiallySelectedItem ? getKeyForList(initiallySelectedItem) : undefined}
+            initiallyFocusedItemKey={focusedItemKey}
             shouldShowTextInput={shouldShowTextInput}
             textInputOptions={textInputOptions}
             footerContent={shouldAutoSave ? undefined : footerContent}

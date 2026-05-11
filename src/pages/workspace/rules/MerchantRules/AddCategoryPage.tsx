@@ -1,6 +1,5 @@
 import React, {useMemo} from 'react';
 import RuleSelectionBase from '@components/Rule/RuleSelectionBase';
-import useLocalize from '@hooks/useLocalize';
 import useOnyx from '@hooks/useOnyx';
 import {updateDraftMerchantRule} from '@libs/actions/User';
 import {getDecodedCategoryName} from '@libs/CategoryUtils';
@@ -16,24 +15,21 @@ type AddCategoryPageProps = PlatformStackScreenProps<SettingsNavigatorParamList,
 
 function AddCategoryPage({route}: AddCategoryPageProps) {
     const {policyID, ruleID} = route.params;
-    const {translate} = useLocalize();
     const isEditing = ruleID !== ROUTES.NEW;
 
     const [form] = useOnyx(ONYXKEYS.FORMS.MERCHANT_RULE_FORM);
     const [policyCategories] = useOnyx(`${ONYXKEYS.COLLECTION.POLICY_CATEGORIES}${policyID}`);
 
+    const selectedCategoryItem = form?.category ? {name: getDecodedCategoryName(form.category), value: form.category} : undefined;
+
     const categoryItems = useMemo(() => {
-        return [
-            {name: translate('common.none'), value: ''},
-            ...Object.values(policyCategories ?? {})
-                .filter((category) => category.enabled && category.pendingAction !== CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE)
-                .map((category) => {
-                    const decodedCategoryName = getDecodedCategoryName(category.name);
-                    return {name: decodedCategoryName, value: category.name};
-                }),
-        ];
-    }, [policyCategories, translate]);
-    const selectedCategoryItem = categoryItems.find(({value}) => value === (form?.category ?? ''));
+        return Object.values(policyCategories ?? {})
+            .filter((category) => category.enabled && category.pendingAction !== CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE)
+            .map((category) => {
+                const decodedCategoryName = getDecodedCategoryName(category.name);
+                return {name: decodedCategoryName, value: category.name};
+            });
+    }, [policyCategories]);
 
     const backToRoute = isEditing ? ROUTES.RULES_MERCHANT_EDIT.getRoute(policyID, ruleID) : ROUTES.RULES_MERCHANT_NEW.getRoute(policyID);
 

@@ -65,6 +65,7 @@ function RuleSelectionBase({titleKey, title, testID, selectedItem, items, onSave
                         items={items}
                         onSaveSelection={onSave}
                         shouldAutoSave
+                        shouldShowNoneOption
                     />
                 </View>
             </ScreenWrapper>
