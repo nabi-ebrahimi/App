@@ -29,7 +29,6 @@ import {
 } from '@libs/ReportUtils';
 import {getCurrentSearchQueryJSON} from '@libs/SearchQueryUtils';
 import {getOriginalTransactionWithSplitInfo, hasTransactionBeenRejected} from '@libs/TransactionUtils';
-import {setDeleteTransactionNavigateBackUrl} from '@userActions/Report';
 import type {IOUType} from '@src/CONST';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
@@ -222,13 +221,13 @@ function useSelectedTransactionsActions({
     };
 
     const handleDeleteTransactionsWithNavigation = (backToRoute?: Route) => {
+        Navigation.goBack(backToRoute);
+
         if (!backToRoute && !navigationRef.canGoBack()) {
             handleDeleteTransactions();
             return;
         }
 
-        const deleteNavigateBackUrl = backToRoute ?? Navigation.getActiveRoute() ?? ROUTES.HOME;
-        setDeleteTransactionNavigateBackUrl(deleteNavigateBackUrl);
         Navigation.goBack(backToRoute);
 
         // When deleting IOUs on the search route, as soon as Navigation.goBack returns to the search route,
