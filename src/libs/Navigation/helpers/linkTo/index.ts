@@ -26,6 +26,7 @@ const defaultLinkToOptions: LinkToOptions = {
  * Used to distinguish plain tab switches from cross-tab deep navigations.
  */
 const ROOT_TAB_SCREENS = new Set<string>([SCREENS.HOME, SCREENS.INBOX, SCREENS.SEARCH.ROOT, SCREENS.SETTINGS.ROOT, SCREENS.WORKSPACES_LIST]);
+const TRANSIENT_AUTH_SCREENS = new Set<string>([SCREENS.VALIDATE_LOGIN, SCREENS.TRANSITION_BETWEEN_APPS]);
 
 function areNamesAndParamsEqual(currentState: NavigationState<RootNavigatorParamList>, stateFromPath: PartialState<NavigationState<RootNavigatorParamList>>) {
     const currentFocusedRoute = findFocusedRoute(currentState);
@@ -198,7 +199,12 @@ export default function linkTo(navigation: NavigationContainerRef<RootNavigatorP
     // to TAB_NAVIGATOR, PUSH a new instance above (e.g., above RHP).
     const currentTopRoute = currentState.routes[currentState.index];
     if (currentTopRoute?.name !== NAVIGATORS.TAB_NAVIGATOR && typedPayload.name === NAVIGATORS.TAB_NAVIGATOR) {
-        (action as {type: string}).type = CONST.NAVIGATION.ACTION_TYPE.PUSH;
+        const isNavigatingFromTransientAuthRouteToTabNavigator = TRANSIENT_AUTH_SCREENS.has(currentTopRoute?.name ?? '') && typedPayload.name === NAVIGATORS.TAB_NAVIGATOR;
+        if (isNavigatingFromTransientAuthRouteToTabNavigator) {
+            action.type = CONST.NAVIGATION.ACTION_TYPE.REPLACE;
+        } else if (!forceReplace && currentTopRoute?.name !== NAVIGATORS.TAB_NAVIGATOR && typedPayload.name === NAVIGATORS.TAB_NAVIGATOR) {
+            (action as {type: string}).type = CONST.NAVIGATION.ACTION_TYPE.PUSH;
+        }
     }
 
     // Cross-tab navigation to a deep leaf (e.g. Settings → Concierge): PUSH a new TAB_NAVIGATOR so
