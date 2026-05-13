@@ -764,6 +764,7 @@ function deleteMoneyRequest({
             key: `${ONYXKEYS.COLLECTION.REPORT}${iouReport?.reportID}`,
             value: {
                 reportID: null,
+                statusNum: CONST.REPORT.STATUS_NUM.CLOSED,
                 pendingFields: {
                     preview: CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE,
                 },
