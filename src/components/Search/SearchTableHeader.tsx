@@ -219,6 +219,14 @@ const getExpenseReportHeaders = (profileIcon?: IconAsset): SearchColumnConfig[] 
         translationKey: 'common.submitted',
     },
     {
+        columnName: CONST.SEARCH.TABLE_COLUMNS.FIRST_APPROVER,
+        translationKey: 'common.firstApprover',
+    },
+    {
+        columnName: CONST.SEARCH.TABLE_COLUMNS.FIRST_APPROVED,
+        translationKey: 'common.firstApproved',
+    },
+    {
         columnName: CONST.SEARCH.TABLE_COLUMNS.APPROVED,
         translationKey: 'search.filters.approved',
     },
@@ -447,6 +455,7 @@ type SearchTableHeaderProps = {
     onSortPress: (column: SearchColumnType, order: SortOrder) => void;
     shouldShowYear: boolean;
     shouldShowYearSubmitted?: boolean;
+    shouldShowYearFirstApproved?: boolean;
     shouldShowYearApproved?: boolean;
     shouldShowYearPosted?: boolean;
     shouldShowYearExported?: boolean;
@@ -472,6 +481,7 @@ function SearchTableHeader({
     onSortPress,
     shouldShowYear,
     shouldShowYearSubmitted,
+    shouldShowYearFirstApproved,
     shouldShowYearApproved,
     shouldShowYearPosted,
     shouldShowYearExported,
@@ -545,6 +555,7 @@ function SearchTableHeader({
             shouldShowColumn={shouldShowColumn}
             dateColumnSize={shouldShowYear ? CONST.SEARCH.TABLE_COLUMN_SIZES.WIDE : CONST.SEARCH.TABLE_COLUMN_SIZES.NORMAL}
             submittedColumnSize={shouldShowYearSubmitted ? CONST.SEARCH.TABLE_COLUMN_SIZES.WIDE : CONST.SEARCH.TABLE_COLUMN_SIZES.NORMAL}
+            firstApprovedColumnSize={shouldShowYearFirstApproved ? CONST.SEARCH.TABLE_COLUMN_SIZES.WIDE : CONST.SEARCH.TABLE_COLUMN_SIZES.NORMAL}
             approvedColumnSize={shouldShowYearApproved ? CONST.SEARCH.TABLE_COLUMN_SIZES.WIDE : CONST.SEARCH.TABLE_COLUMN_SIZES.NORMAL}
             postedColumnSize={shouldShowYearPosted ? CONST.SEARCH.TABLE_COLUMN_SIZES.WIDE : CONST.SEARCH.TABLE_COLUMN_SIZES.NORMAL}
             exportedColumnSize={shouldShowYearExported ? CONST.SEARCH.TABLE_COLUMN_SIZES.WIDE : CONST.SEARCH.TABLE_COLUMN_SIZES.NORMAL}

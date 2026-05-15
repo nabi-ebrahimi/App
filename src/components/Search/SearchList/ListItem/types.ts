@@ -204,6 +204,12 @@ type TransactionReportGroupListItemType = TransactionGroupListItemType & {groupe
         /** The personal details of the user paying the request */
         to: PersonalDetails;
 
+        /** The personal details of the first approver */
+        firstApprover: PersonalDetails;
+
+        /** The date the report was first approved */
+        firstApproved?: string;
+
         /** Final and formatted "status" value used for displaying and sorting */
         formattedStatus?: string;
 
@@ -212,6 +218,9 @@ type TransactionReportGroupListItemType = TransactionGroupListItemType & {groupe
 
         /** Final and formatted "to" value used for displaying and sorting */
         formattedTo?: string;
+
+        /** Final and formatted "first approver" value used for displaying and sorting */
+        formattedFirstApprover?: string;
 
         /** The date the report was exported */
         exported?: string;
@@ -230,6 +239,9 @@ type TransactionReportGroupListItemType = TransactionGroupListItemType & {groupe
          * This is true if at least one report in the dataset was submitted in past years
          */
         shouldShowYearSubmitted: boolean;
+
+        /** Whether we should show the year for the first approved date */
+        shouldShowYearFirstApproved: boolean;
 
         /**
          * Whether we should show the year for the approved date.

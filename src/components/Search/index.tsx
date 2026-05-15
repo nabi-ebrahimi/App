@@ -1606,16 +1606,17 @@ function Search({
     const yearIndicators = useMemo(
         () =>
             searchResults?.data
-                ? shouldShowYearUtil(searchResults.data, isExpenseReportType ?? false, undefined, type === CONST.SEARCH.DATA_TYPES.EXPENSE)
+                ? shouldShowYearUtil(searchResults.data, isExpenseReportType ?? false, undefined, type === CONST.SEARCH.DATA_TYPES.EXPENSE, exportReportActions)
                 : {
                       shouldShowYearCreated: false,
                       shouldShowYearSubmitted: false,
+                      shouldShowYearFirstApproved: false,
                       shouldShowYearApproved: false,
                       shouldShowYearPosted: false,
                       shouldShowYearExported: false,
                       shouldShowYearWithdrawn: false,
                   },
-        [searchResults?.data, isExpenseReportType, type],
+        [searchResults?.data, isExpenseReportType, type, exportReportActions],
     );
 
     const amountIndicators = useMemo(
@@ -1712,7 +1713,7 @@ function Search({
         );
     }
 
-    const {shouldShowYearCreated, shouldShowYearSubmitted, shouldShowYearApproved, shouldShowYearPosted, shouldShowYearExported, shouldShowYearWithdrawn} = yearIndicators;
+    const {shouldShowYearCreated, shouldShowYearSubmitted, shouldShowYearFirstApproved, shouldShowYearApproved, shouldShowYearPosted, shouldShowYearExported, shouldShowYearWithdrawn} = yearIndicators;
     const {shouldShowAmountInWideColumn, shouldShowTaxAmountInWideColumn} = amountIndicators;
     const shouldShowTableHeader = isLargeScreenWidth && !isChat;
     const tableHeaderVisible = canSelectMultiple || shouldShowTableHeader;
@@ -1789,6 +1790,7 @@ function Search({
                                     sortBy={sortBy}
                                     shouldShowYear={shouldShowYearCreated}
                                     shouldShowYearSubmitted={shouldShowYearSubmitted}
+                                    shouldShowYearFirstApproved={shouldShowYearFirstApproved}
                                     shouldShowYearApproved={shouldShowYearApproved}
                                     shouldShowYearPosted={shouldShowYearPosted}
                                     shouldShowYearExported={shouldShowYearExported}

@@ -57,6 +57,7 @@ type GetReportTableColumnStylesParams = {
     isAmountColumnWide?: boolean;
     isTaxAmountColumnWide?: boolean;
     isSubmittedColumnWide?: boolean;
+    isFirstApprovedColumnWide?: boolean;
     isApprovedColumnWide?: boolean;
     isPostedColumnWide?: boolean;
     isExportedColumnWide?: boolean;
@@ -1875,6 +1876,7 @@ const createStyleUtils = (theme: ThemeColors, styles: ThemeStyles) => ({
     getReportTableColumnStyles: (columnName: string, options: GetReportTableColumnStylesParams = {}): ViewStyle => {
         const {
             isSubmittedColumnWide,
+            isFirstApprovedColumnWide,
             isApprovedColumnWide,
             isPostedColumnWide,
             isExportedColumnWide,
@@ -1905,6 +1907,12 @@ const createStyleUtils = (theme: ThemeColors, styles: ThemeStyles) => ({
                 break;
             case CONST.SEARCH.TABLE_COLUMNS.SUBMITTED:
                 columnWidth = {...getWidthStyle(isSubmittedColumnWide ? variables.w92 : variables.w72)};
+                break;
+            case CONST.SEARCH.TABLE_COLUMNS.FIRST_APPROVED:
+                columnWidth = {...getWidthStyle(isFirstApprovedColumnWide ? variables.w92 : variables.w72)};
+                break;
+            case CONST.SEARCH.TABLE_COLUMNS.FIRST_APPROVER:
+                columnWidth = {...getWidthStyle(variables.w130)};
                 break;
             case CONST.SEARCH.TABLE_COLUMNS.APPROVED:
                 columnWidth = {...getWidthStyle(isApprovedColumnWide ? variables.w92 : variables.w72)};

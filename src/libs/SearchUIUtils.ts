@@ -128,6 +128,7 @@ import {
     isMoneyRequestAction,
     isReportActionVisible,
     isResolvedActionableWhisper,
+    getSortedReportActions,
     isWhisperActionTargetedToOthers,
 } from './ReportActionsUtils';
 import {isExportAction} from './ReportPrimaryActionUtils';
@@ -293,6 +294,8 @@ const expenseReportColumnNamesToSortingProperty: ExpenseReportSorting = {
     [CONST.SEARCH.TABLE_COLUMNS.AVATAR]: null,
     [CONST.SEARCH.TABLE_COLUMNS.DATE]: 'created' as const,
     [CONST.SEARCH.TABLE_COLUMNS.SUBMITTED]: 'submitted' as const,
+    [CONST.SEARCH.TABLE_COLUMNS.FIRST_APPROVER]: 'formattedFirstApprover' as const,
+    [CONST.SEARCH.TABLE_COLUMNS.FIRST_APPROVED]: 'firstApproved' as const,
     [CONST.SEARCH.TABLE_COLUMNS.APPROVED]: 'approved' as const,
     [CONST.SEARCH.TABLE_COLUMNS.EXPORTED]: 'exported' as const,
     [CONST.SEARCH.TABLE_COLUMNS.STATUS]: 'formattedStatus' as const,
@@ -1402,6 +1405,7 @@ function hasDeletedTransactionInData(data: TransactionListItemType[] | Transacti
 type ShouldShowYearResult = {
     shouldShowYearCreated: boolean;
     shouldShowYearSubmitted: boolean;
+    shouldShowYearFirstApproved: boolean;
     shouldShowYearApproved: boolean;
     shouldShowYearPosted: boolean;
     shouldShowYearExported: boolean;
@@ -1442,6 +1446,17 @@ function buildLastExportedActionByReportIDMap(data: OnyxTypes.SearchResults['dat
     return lastExportedActionByReportID;
 }
 
+function getFirstApprovedAction(actions?: OnyxTypes.ReportAction[]): OnyxTypes.ReportAction | undefined {
+    return getSortedReportActions((actions ?? []).filter((action) => action.actionName === CONST.REPORT.ACTIONS.TYPE.APPROVED)).at(0);
+}
+
+function shouldShowYearForFirstApprovedActions(reportActions?: Record<string, OnyxTypes.ReportAction[]>): boolean {
+    return Object.values(reportActions ?? {}).some((actions) => {
+        const firstApprovedAction = getFirstApprovedAction(actions);
+        return !!firstApprovedAction?.created && DateUtils.doesDateBelongToAPastYear(firstApprovedAction.created);
+    });
+}
+
 /**
  * Checks if the date of transactions or reports indicate the need to display the year because they are from a past year.
  * @param data - The search results data (array or object)
@@ -1453,10 +1468,12 @@ function shouldShowYear(
     checkOnlyReports = false,
     precomputedLastExportedMap?: Map<string, OnyxTypes.ReportAction>,
     skipReportCreatedDate = false,
+    reportActions?: Record<string, OnyxTypes.ReportAction[]>,
 ): ShouldShowYearResult {
     const result: ShouldShowYearResult = {
         shouldShowYearCreated: false,
         shouldShowYearSubmitted: false,
+        shouldShowYearFirstApproved: false,
         shouldShowYearApproved: false,
         shouldShowYearPosted: false,
         shouldShowYearExported: false,
@@ -1479,6 +1496,9 @@ function shouldShowYear(
                 }
                 if (item.submitted && DateUtils.doesDateBelongToAPastYear(item.submitted)) {
                     result.shouldShowYearSubmitted = true;
+                }
+                if (item.firstApproved && DateUtils.doesDateBelongToAPastYear(item.firstApproved)) {
+                    result.shouldShowYearFirstApproved = true;
                 }
                 if (item.approved && DateUtils.doesDateBelongToAPastYear(item.approved)) {
                     result.shouldShowYearApproved = true;
@@ -1542,6 +1562,9 @@ function shouldShowYear(
             const item = data[key];
             for (const action of Object.values(item)) {
                 const date = action.created;
+                if (action.actionName === CONST.REPORT.ACTIONS.TYPE.APPROVED && DateUtils.doesDateBelongToAPastYear(date)) {
+                    result.shouldShowYearFirstApproved = true;
+                }
                 if (DateUtils.doesDateBelongToAPastYear(date)) {
                     result.shouldShowYearCreated = true;
                 }
@@ -1583,6 +1606,7 @@ function shouldShowYear(
         }
     }
 
+    result.shouldShowYearFirstApproved ||= shouldShowYearForFirstApprovedActions(reportActions);
     return result;
 }
 
@@ -1734,6 +1758,7 @@ type PreprocessingContext = {
     shouldShowYearExported: boolean;
     shouldShowYearCreatedReport: boolean;
     shouldShowYearSubmittedReport: boolean;
+    shouldShowYearFirstApprovedReport: boolean;
     shouldShowYearApprovedReport: boolean;
     shouldShowYearExportedReport: boolean;
     shouldShowAmountInWideColumn: boolean;
@@ -1760,6 +1785,7 @@ function createPreprocessingContext(): PreprocessingContext {
         shouldShowYearExported: false,
         shouldShowYearCreatedReport: false,
         shouldShowYearSubmittedReport: false,
+        shouldShowYearFirstApprovedReport: false,
         shouldShowYearApprovedReport: false,
         shouldShowYearExportedReport: false,
         shouldShowAmountInWideColumn: false,
@@ -1800,6 +1826,13 @@ function processReportActionEntry(ctx: PreprocessingContext, key: string, action
 
         if (!ctx.shouldShowYearCreated && DateUtils.doesDateBelongToAPastYear(action.created)) {
             ctx.shouldShowYearCreated = true;
+        }
+        if (
+            action.actionName === CONST.REPORT.ACTIONS.TYPE.APPROVED &&
+            !ctx.shouldShowYearFirstApprovedReport &&
+            DateUtils.doesDateBelongToAPastYear(action.created)
+        ) {
+            ctx.shouldShowYearFirstApprovedReport = true;
         }
     }
 
@@ -2654,6 +2687,7 @@ function getReportSections({
         shouldShowYearExported,
         shouldShowYearCreatedReport,
         shouldShowYearSubmittedReport,
+        shouldShowYearFirstApprovedReport,
         shouldShowYearApprovedReport,
         shouldShowYearExportedReport,
         shouldShowAmountInWideColumn,
@@ -2666,6 +2700,7 @@ function getReportSections({
 
     const orderedKeys: string[] = [...reportKeys, ...transactionKeys];
     const mergedPersonalDetails = {...(onyxPersonalDetailsList ?? {}), ...(data.personalDetailsList ?? {})};
+    const shouldShowYearFirstApproved = shouldShowYearFirstApprovedReport || shouldShowYearForFirstApprovedActions(reportActions);
 
     for (const key of orderedKeys) {
         if (isReportEntry(key) && (data[key].type === CONST.REPORT.TYPE.IOU || data[key].type === CONST.REPORT.TYPE.EXPENSE || data[key].type === CONST.REPORT.TYPE.INVOICE)) {
@@ -2708,9 +2743,16 @@ function getReportSections({
                     getPersonalDetailsForAccountID(reportItem.ownerAccountID ?? CONST.DEFAULT_NUMBER_ID) ??
                     emptyPersonalDetails;
                 const toDetails = !shouldShowBlankTo && reportItem.managerID ? mergedPersonalDetails?.[reportItem.managerID] : emptyPersonalDetails;
+                const firstApprovedAction = getFirstApprovedAction(actions);
+                const firstApproverDetails = firstApprovedAction?.actorAccountID
+                    ? (mergedPersonalDetails?.[firstApprovedAction.actorAccountID] ??
+                        getPersonalDetailsForAccountID(firstApprovedAction.actorAccountID) ??
+                        emptyPersonalDetails)
+                    : emptyPersonalDetails;
 
                 const formattedFrom = formatPhoneNumber(getDisplayNameOrDefault(fromDetails));
                 const formattedTo = !shouldShowBlankTo ? formatPhoneNumber(getDisplayNameOrDefault(toDetails)) : '';
+                const formattedFirstApprover = firstApprovedAction?.actorAccountID ? formatPhoneNumber(getDisplayNameOrDefault(firstApproverDetails)) : '';
 
                 const formattedStatus = getReportStatusTranslation({stateNum: reportItem.stateNum, statusNum: reportItem.statusNum, translate});
                 const policyFromKey = getPolicyFromKey(data, reportItem);
@@ -2746,15 +2788,19 @@ function getReportSections({
                     groupedBy: CONST.SEARCH.DATA_TYPES.EXPENSE_REPORT,
                     from: (fromDetails ?? emptyPersonalDetails) as OnyxTypes.PersonalDetails,
                     to: (toDetails ?? emptyPersonalDetails) as OnyxTypes.PersonalDetails,
+                    firstApprover: (firstApproverDetails ?? emptyPersonalDetails) as OnyxTypes.PersonalDetails,
+                    firstApproved: firstApprovedAction?.created ?? '',
                     exported: lastExportedActionByReportID.get(reportItem.reportID)?.created ?? '',
                     formattedFrom,
                     formattedTo,
+                    formattedFirstApprover,
                     formattedStatus,
                     transactions,
                     shouldShowStatusAsPending,
                     ...(reportPendingAction ? {pendingAction: reportPendingAction} : {}),
                     shouldShowYear: shouldShowYearCreatedReport,
                     shouldShowYearSubmitted: shouldShowYearSubmittedReport,
+                    shouldShowYearFirstApproved,
                     shouldShowYearApproved: shouldShowYearApprovedReport,
                     shouldShowYearExported: shouldShowYearExportedReport,
                     hasVisibleViolations: hasVisibleViolationsForReport,
@@ -4047,6 +4093,10 @@ function getSearchColumnTranslationKey(column: SearchColumnType): TranslationPat
             return 'common.date';
         case CONST.SEARCH.TABLE_COLUMNS.SUBMITTED:
             return 'common.submitted';
+        case CONST.SEARCH.TABLE_COLUMNS.FIRST_APPROVER:
+            return 'common.firstApprover';
+        case CONST.SEARCH.TABLE_COLUMNS.FIRST_APPROVED:
+            return 'common.firstApproved';
         case CONST.SEARCH.TABLE_COLUMNS.APPROVED:
             return 'search.filters.approved';
         case CONST.SEARCH.TABLE_COLUMNS.POSTED:
@@ -5513,6 +5563,8 @@ function getColumnsToShow({
             CONST.SEARCH.TABLE_COLUMNS.TYPE,
             CONST.SEARCH.TABLE_COLUMNS.DATE,
             CONST.SEARCH.TABLE_COLUMNS.STATUS,
+            CONST.SEARCH.TABLE_COLUMNS.FIRST_APPROVER,
+            CONST.SEARCH.TABLE_COLUMNS.FIRST_APPROVED,
             // TOTAL_AMOUNT (Amount) is data-driven in expense report view: shown only when a
             // conversion exists. In search view, TOTAL_AMOUNT is always-true via the default
             // columns map, so we don't need to list it here as non-data for either surface.
