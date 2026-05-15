@@ -54,6 +54,14 @@ function setOnboardingUserReportedIntegration(value: OnboardingAccounting | null
     Onyx.set(ONYXKEYS.ONBOARDING_USER_REPORTED_INTEGRATION, value);
 }
 
+function setOnboardingAccountingEnabled(value: boolean | null) {
+    Onyx.set(ONYXKEYS.ONBOARDING_ACCOUNTING_ENABLED, value);
+}
+
+function setOnboardingInterestedFeaturesMap(value: Array<{id: string; enabled: boolean; enabledByDefault?: boolean; requiresUpdate?: boolean}> | null) {
+    Onyx.set(ONYXKEYS.ONBOARDING_INTERESTED_FEATURES_MAP, value);
+}
+
 function setOnboardingErrorMessage(value: TranslationPaths | null) {
     Onyx.set(ONYXKEYS.ONBOARDING_ERROR_MESSAGE_TRANSLATION_KEY, value);
 }
@@ -199,5 +207,7 @@ export {
     setOnboardingMergeAccountStepValue,
     updateOnboardingValuesAndNavigation,
     setOnboardingUserReportedIntegration,
+    setOnboardingAccountingEnabled,
+    setOnboardingInterestedFeaturesMap,
     setOnboardingTestDriveModalDismissed,
 };

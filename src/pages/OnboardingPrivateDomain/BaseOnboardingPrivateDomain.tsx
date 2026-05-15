@@ -140,7 +140,7 @@ function BaseOnboardingPrivateDomain({shouldUseNativeStyles, route}: BaseOnboard
                         shouldShowSkipButton
                         handleSkipButtonPress={() => {
                             if (isVsb) {
-                                Navigation.navigate(ROUTES.ONBOARDING_ACCOUNTING.getRoute(route.params?.backTo));
+                                Navigation.navigate(ROUTES.ONBOARDING_INTERESTED_FEATURES.getRoute(undefined, route.params?.backTo));
                                 return;
                             }
 

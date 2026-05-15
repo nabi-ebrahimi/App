@@ -3348,7 +3348,8 @@ const ROUTES = {
         route: 'onboarding/interested-features',
 
         // eslint-disable-next-line no-restricted-syntax -- Legacy route generation
-        getRoute: (userReportedIntegration?: string, backTo?: string) => getUrlWithBackToParam(`onboarding/interested-features?userReportedIntegration=${userReportedIntegration}`, backTo),
+        getRoute: (userReportedIntegration?: string, backTo?: string) =>
+            getUrlWithBackToParam(userReportedIntegration ? `onboarding/interested-features?userReportedIntegration=${userReportedIntegration}` : `onboarding/interested-features`, backTo),
     },
     ONBOARDING_PURPOSE: {
         route: 'onboarding/purpose',
