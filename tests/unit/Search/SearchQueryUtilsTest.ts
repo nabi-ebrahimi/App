@@ -1926,6 +1926,40 @@ describe('SearchQueryUtils', () => {
     });
 
     describe('buildSearchQueryString', () => {
+        test('removes invalid groupBy and dependent view from parsed queries', () => {
+            const queryJSON = buildSearchQueryJSON('type:expense from:12345 groupBy:reports view:pie', 'type:expense from:12345 groupBy:reports view:pie');
+
+            expect(queryJSON?.groupBy).toBeUndefined();
+            expect(queryJSON?.view).toBeUndefined();
+            expect(queryJSON?.flatFilters).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        key: CONST.SEARCH.SYNTAX_FILTER_KEYS.FROM,
+                    }),
+                ]),
+            );
+            expect(queryJSON?.rawFilterList?.some((filter) => filter.key === CONST.SEARCH.SYNTAX_ROOT_KEYS.GROUP_BY || filter.key === CONST.SEARCH.SYNTAX_ROOT_KEYS.VIEW)).toBe(false);
+            expect(buildSearchQueryString(queryJSON)).toBe(`${defaultQuery} from:12345`);
+        });
+
+        test('keeps valid groupBy and explicit view in parsed queries', () => {
+            const queryJSON = buildSearchQueryJSON('type:expense from:12345 groupBy:category view:pie', 'type:expense from:12345 groupBy:category view:pie');
+
+            expect(queryJSON?.groupBy).toBe(CONST.SEARCH.GROUP_BY.CATEGORY);
+            expect(queryJSON?.view).toBe(CONST.SEARCH.VIEW.PIE);
+            expect(queryJSON?.rawFilterList?.some((filter) => filter.key === CONST.SEARCH.SYNTAX_ROOT_KEYS.GROUP_BY)).toBe(true);
+            expect(queryJSON?.rawFilterList?.some((filter) => filter.key === CONST.SEARCH.SYNTAX_ROOT_KEYS.VIEW)).toBe(true);
+        });
+
+        test('normalizes invalid view to table when groupBy is valid', () => {
+            const queryJSON = buildSearchQueryJSON('type:expense groupBy:category view:reports', 'type:expense groupBy:category view:reports');
+
+            expect(queryJSON?.groupBy).toBe(CONST.SEARCH.GROUP_BY.CATEGORY);
+            expect(queryJSON?.view).toBe(CONST.SEARCH.VIEW.TABLE);
+            expect(queryJSON?.rawFilterList?.some((filter) => filter.key === CONST.SEARCH.SYNTAX_ROOT_KEYS.GROUP_BY)).toBe(true);
+            expect(queryJSON?.rawFilterList?.some((filter) => filter.key === CONST.SEARCH.SYNTAX_ROOT_KEYS.VIEW)).toBe(false);
+        });
+
         test('includes view when explicitly set in rawFilterList', () => {
             const queryJSON = buildSearchQueryJSON('type:expense view:line', 'type:expense view:line');
 

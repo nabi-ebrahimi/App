@@ -73,6 +73,8 @@ const VALID_HAS_TYPES = new Set(Object.values(CONST.SEARCH.HAS_VALUES));
 const VALID_IS_TYPES = new Set(Object.values(CONST.SEARCH.IS_VALUES));
 const VALID_WITHDRAWAL_TYPES = new Set(Object.values(CONST.SEARCH.WITHDRAWAL_TYPE));
 const VALID_WITHDRAWAL_STATUSES = new Set<string>(Object.values(CONST.SEARCH.SETTLEMENT_STATUS));
+const VALID_GROUP_BY_VALUES = new Set<string>(Object.values(CONST.SEARCH.GROUP_BY));
+const VALID_VIEW_VALUES = new Set<string>(Object.values(CONST.SEARCH.VIEW));
 
 // Create reverse lookup maps for O(1) performance
 const createKeyToUserFriendlyMap = () => {
@@ -592,6 +594,23 @@ function getBuildSearchQueryJSONCacheKey(query: SearchQueryString, rawQuery?: Se
     return rawQuery ? `${query}${BUILD_SEARCH_QUERY_JSON_CACHE_KEY_SEPARATOR}${rawQuery}` : query;
 }
 
+function normalizeDisplayValues(result: SearchQueryJSON, rawFilterList?: RawQueryFilter[]) {
+    let normalizedRawFilterList = rawFilterList;
+    const groupBy = result.groupBy;
+    const isInvalidGroupBy = !!groupBy && !VALID_GROUP_BY_VALUES.has(groupBy);
+
+    if (isInvalidGroupBy) {
+        result.groupBy = undefined;
+        (result as Partial<SearchQueryJSON>).view = undefined;
+        normalizedRawFilterList = normalizedRawFilterList?.filter((filter) => filter.key !== CONST.SEARCH.SYNTAX_ROOT_KEYS.GROUP_BY && filter.key !== CONST.SEARCH.SYNTAX_ROOT_KEYS.VIEW);
+    } else if (result.view && !VALID_VIEW_VALUES.has(result.view)) {
+        result.view = CONST.SEARCH.VIEW.TABLE;
+        normalizedRawFilterList = normalizedRawFilterList?.filter((filter) => filter.key !== CONST.SEARCH.SYNTAX_ROOT_KEYS.VIEW);
+    }
+
+    return normalizedRawFilterList;
+}
+
 function getCachedSearchQueryJSON(query: SearchQueryString, rawQuery?: SearchQueryString): Readonly<SearchQueryJSON> | undefined {
     const cacheKey = getBuildSearchQueryJSONCacheKey(query, rawQuery);
     if (buildSearchQueryJSONCache.has(cacheKey)) {
@@ -601,7 +620,7 @@ function getCachedSearchQueryJSON(query: SearchQueryString, rawQuery?: SearchQue
     try {
         const result = parseSearchQuery(query) as SearchQueryJSON;
         const flatFilters = getFilters(result);
-        const rawFilterList = rawQuery ? getRawFilterListFromQuery(rawQuery) : result.rawFilterList;
+        const rawFilterList = normalizeDisplayValues(result, rawQuery ? getRawFilterListFromQuery(rawQuery) : result.rawFilterList);
 
         // Add the full input and hash to the results
         result.inputQuery = query;

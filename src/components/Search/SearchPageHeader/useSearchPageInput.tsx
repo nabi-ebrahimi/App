@@ -30,6 +30,7 @@ import ONYXKEYS from '@src/ONYXKEYS';
 import ROUTES from '@src/ROUTES';
 import {hasSeenTourSelector} from '@src/selectors/Onboarding';
 import {accountIDSelector} from '@src/selectors/Session';
+import getSearchPageInputQueryForSubmit from './getSearchPageInputQueryForSubmit';
 
 type UseSearchPageInputProps = {
     queryJSON: SearchQueryJSON;
@@ -118,7 +119,8 @@ function useSearchPageInput({queryJSON, onSearch, onSubmit}: UseSearchPageInputP
     }
 
     function submitSearch(queryString: SearchQueryString, shouldSkipAmountConversion = false) {
-        const queryWithSubstitutions = getQueryWithSubstitutions(queryString, autocompleteSubstitutions, currentUserAccountID);
+        const queryForSubmit = getSearchPageInputQueryForSubmit(queryString, originalInputQuery, shouldShowQuery);
+        const queryWithSubstitutions = getQueryWithSubstitutions(queryForSubmit, autocompleteSubstitutions, currentUserAccountID);
         const updatedQuery = getQueryWithUpdatedValues(queryWithSubstitutions, shouldSkipAmountConversion);
 
         if (!updatedQuery) {
