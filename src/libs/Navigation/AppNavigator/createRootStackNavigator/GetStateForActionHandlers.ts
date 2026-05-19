@@ -2,7 +2,6 @@ import type {CommonActions, NavigationState, PartialState, RouterConfigOptions, 
 import {StackActions} from '@react-navigation/native';
 import type {ParamListBase, Router} from '@react-navigation/routers';
 import Log from '@libs/Log';
-import buildTabNavigatorNestedState from '@libs/Navigation/helpers/buildTabNavigatorNestedState';
 import getStateFromPath from '@libs/Navigation/helpers/getStateFromPath';
 import {isFullScreenName} from '@libs/Navigation/helpers/isNavigatorName';
 import {SIDEBAR_TO_SPLIT, SPLIT_TO_SIDEBAR} from '@libs/Navigation/linkingConfig/RELATIONS';
@@ -105,6 +104,81 @@ type TabNavigatorPushPayloadParams = {
     params?: Record<string, unknown>;
 };
 
+type NestedNavigatorStateResult = {
+    params?: Record<string, unknown>;
+    state?: PartialState<NavigationState>;
+};
+
+function getParamsWithoutNestedTarget(params: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+    if (!params) {
+        return undefined;
+    }
+
+    const filteredParams = Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'screen' && key !== 'params')) as Record<string, unknown>;
+    return Object.keys(filteredParams).length > 0 ? filteredParams : undefined;
+}
+
+function getNestedNavigatorStateFromParams(routeName: string, nestedParams: Record<string, unknown> | undefined): NestedNavigatorStateResult {
+    if (!nestedParams || typeof nestedParams !== 'object' || !('screen' in nestedParams) || typeof nestedParams.screen !== 'string') {
+        return {};
+    }
+
+    const childRouteName = nestedParams.screen;
+    const childRouteParams = 'params' in nestedParams && nestedParams.params && typeof nestedParams.params === 'object' ? (nestedParams.params as Record<string, unknown>) : undefined;
+    const params = getParamsWithoutNestedTarget(nestedParams);
+
+    if (routeName === NAVIGATORS.WORKSPACE_NAVIGATOR) {
+        if (childRouteName === SCREENS.WORKSPACES_LIST) {
+            return {
+                state: {
+                    routes: [{name: SCREENS.WORKSPACES_LIST, ...(childRouteParams ? {params: childRouteParams} : {})}],
+                    index: 0,
+                } as PartialState<NavigationState>,
+            };
+        }
+
+        if (childRouteName in SPLIT_TO_SIDEBAR) {
+            const nestedSplitRoute = getNestedNavigatorStateFromParams(childRouteName, childRouteParams);
+            return {
+                state: {
+                    routes: [
+                        {
+                            name: childRouteName,
+                            ...(nestedSplitRoute.params ? {params: nestedSplitRoute.params} : {}),
+                            ...(nestedSplitRoute.state ? {state: nestedSplitRoute.state} : {}),
+                        },
+                    ],
+                    index: 0,
+                } as PartialState<NavigationState>,
+            };
+        }
+
+        return {params};
+    }
+
+    if (routeName in SPLIT_TO_SIDEBAR) {
+        const leafRoute = {name: childRouteName, ...(childRouteParams ? {params: childRouteParams} : {})};
+
+        return {
+            state: {
+                routes: [leafRoute],
+                index: 0,
+            } as PartialState<NavigationState>,
+        };
+    }
+
+    if (routeName === NAVIGATORS.SEARCH_FULLSCREEN_NAVIGATOR) {
+        return {
+            state: {
+                routes: [{name: childRouteName, ...(childRouteParams ? {params: childRouteParams} : {})}],
+                index: 0,
+            } as PartialState<NavigationState>,
+        };
+    }
+
+    return {params};
+}
+
 /**
  * True when this push is `TAB_NAVIGATOR` with nested `{ screen, params }`. That combination is the case we patch below:
  * the stack route can carry `screen`/`params` as *initial* child navigation hints, which is not the same as having a
@@ -136,22 +210,24 @@ function getRehydratedTabNavigatorStateAfterPush(rehydratedState: StackNavigatio
     const existingTabState = rehydratedLastRoute.state as NavigationState | undefined;
     const existingTabRoute = existingTabState?.routes?.find((r) => r.name === screenName);
     const tabParams = (nestedParams ?? existingTabRoute?.params) as Record<string, unknown> | undefined;
+    const nestedNavigatorState = getNestedNavigatorStateFromParams(screenName, nestedParams);
+    const selectedTabParams = nestedNavigatorState.state ? nestedNavigatorState.params : tabParams;
+    const selectedTabState = nestedNavigatorState.state ?? (existingTabRoute?.state ? (existingTabRoute.state as PartialState<NavigationState>) : undefined);
 
     const selectedTabRoute: NavigationPartialRoute = {
         name: screenName,
-        ...(tabParams ? {params: tabParams} : {}),
-        ...(existingTabRoute?.state ? {state: existingTabRoute.state as PartialState<NavigationState>} : {}),
+        ...(selectedTabParams ? {params: selectedTabParams} : {}),
+        ...(selectedTabState ? {state: selectedTabState} : {}),
     };
 
-    const tabNavigatorNestedState = buildTabNavigatorNestedState(selectedTabRoute);
-    const paramsWithoutNestedTarget = Object.fromEntries(
-        Object.entries((rehydratedLastRoute.params ?? {}) as Record<string, unknown>).filter(([key]) => key !== 'screen' && key !== 'params'),
-    ) as Record<string, unknown>;
-
+    const tabNavigatorNestedState = {
+        routes: [selectedTabRoute],
+        index: 0,
+    } as PartialState<NavigationState>;
     const updatedLastRoute = {
         ...rehydratedLastRoute,
+        state: undefined,
         params: {
-            ...paramsWithoutNestedTarget,
             // RN tab partial state is wider than NavigationState; params.state accepts PartialState.
             state: tabNavigatorNestedState as unknown as PartialState<NavigationState>,
         },

@@ -256,6 +256,19 @@ function SearchRouter({onRouterClose, shouldHideInputCaret, isSearchRouterDispla
         [autocompleteSubstitutions, setTextInputValue, textInputValue],
     );
 
+    const runActionAndCloseRouterIfNeeded = useCallback(
+        (callback: () => void) => {
+            backHistory(callback);
+
+            // Preserve the fullscreen SearchRouter in the stack so back navigation returns
+            // to Search first before popping earlier fullscreen routes (e.g. Inbox, Settings).
+            if (!isSearchRouterScreen) {
+                onRouterClose();
+            }
+        },
+        [isSearchRouterScreen, onRouterClose],
+    );
+
     const submitSearch = useCallback(
         (queryString: SearchQueryString, shouldSkipAmountConversion = false) => {
             const queryWithSubstitutions = getQueryWithSubstitutions(queryString, autocompleteSubstitutions, currentUserAccountID);
@@ -267,8 +280,7 @@ function SearchRouter({onRouterClose, shouldHideInputCaret, isSearchRouterDispla
             // Reset the search query flag when performing a new search
             setShouldResetSearchQuery(false);
 
-            backHistory(() => {
-                onRouterClose();
+            runActionAndCloseRouterIfNeeded(() => {
                 setSearchContext(true);
                 Navigation.navigate(ROUTES.SEARCH_ROOT.getRoute({query: updatedQuery}));
             });
@@ -276,7 +288,7 @@ function SearchRouter({onRouterClose, shouldHideInputCaret, isSearchRouterDispla
             setTextInputValue('');
             setAutocompleteQueryValue('');
         },
-        [autocompleteSubstitutions, currentUserAccountID, onRouterClose, setTextInputValue, setShouldResetSearchQuery],
+        [autocompleteSubstitutions, currentUserAccountID, runActionAndCloseRouterIfNeeded, setTextInputValue, setShouldResetSearchQuery],
     );
 
     const onListItemPress = useCallback(
@@ -327,27 +339,25 @@ function SearchRouter({onRouterClose, shouldHideInputCaret, isSearchRouterDispla
                     setFocusAndScrollToRight();
                 } else if (item.searchItemType === CONST.SEARCH.SEARCH_ROUTER_ITEM_TYPE.ASK_CONCIERGE) {
                     const {searchQuery} = item;
-                    backHistory(() => {
+                    runActionAndCloseRouterIfNeeded(() => {
                         askConcierge(searchQuery);
                     });
-                    onRouterClose();
                 } else {
                     submitSearch(item.searchQuery, item.keyForList !== CONST.SEARCH.SEARCH_ROUTER_ITEM_TYPE.FIND_ITEM);
                 }
             } else {
-                backHistory(() => {
+                runActionAndCloseRouterIfNeeded(() => {
                     if (item?.reportID) {
                         Navigation.navigate(ROUTES.REPORT_WITH_ID.getRoute(item.reportID));
                     } else if ('login' in item) {
                         navigateToAndOpenReport(item.login ? [item.login] : [], personalDetails, currentUserAccountID, introSelected, isSelfTourViewed, betas, false);
                     }
                 });
-                onRouterClose();
             }
         },
         [
             autocompleteSubstitutions,
-            onRouterClose,
+            runActionAndCloseRouterIfNeeded,
             personalDetails,
             onSearchQueryChange,
             submitSearch,
