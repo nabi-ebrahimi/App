@@ -188,10 +188,16 @@ export default function linkTo(navigation: NavigationContainerRef<RootNavigatorP
         action.type = CONST.NAVIGATION.ACTION_TYPE.PUSH;
     }
 
-    // When we link to a report action in the current report, we want to push instead of replace so that back navigation
-    // works naturally.
+    // When we link to a report action in the current report, update the focused route params in-place and
+    // append a params-history entry. This preserves back navigation without opening a duplicate Report screen.
     else if (isNavigatingToReportActionWithinSameReport(currentFocusedRoute, focusedRouteFromPath)) {
-        action.type = CONST.NAVIGATION.ACTION_TYPE.PUSH;
+        navigation.dispatch({
+            type: CONST.NAVIGATION.ACTION_TYPE.PUSH_PARAMS,
+            payload: {
+                params: focusedRouteFromPath.params ?? {},
+            },
+        });
+        return;
     }
 
     // When something other than TAB_NAVIGATOR is on top of the stack and we're navigating
