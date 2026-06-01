@@ -1,4 +1,4 @@
-import {useNavigation, useRoute} from '@react-navigation/native';
+import {CommonActions, useNavigation, useRoute} from '@react-navigation/native';
 import type {ReactNode} from 'react';
 import React, {useEffect, useState} from 'react';
 import type {OnyxEntry} from 'react-native-onyx';
@@ -51,7 +51,8 @@ type LinkedActionNotFoundGateProps = {
 function LinkedActionNotFoundGate({reportActionIDFromRoute, children}: LinkedActionNotFoundGateProps) {
     const route = useRoute();
     const navigation = useNavigation();
-    const navigatorKey = navigation.getState()?.key;
+    const navigationState = navigation.getState();
+    const navigatorKey = navigationState?.key;
     const routeParams = route.params as {reportID?: string; reportActionID?: string} | undefined;
     const reportIDFromRoute = getNonEmptyStringOnyxID(routeParams?.reportID);
     const {canGoBack} = useNavigation();
@@ -177,9 +178,25 @@ function LinkedActionNotFoundGate({reportActionIDFromRoute, children}: LinkedAct
         Navigation.setParams({reportActionID: undefined}, route.key, navigatorKey);
     };
 
+    const hasPushParamsHistory =
+        (navigationState?.history?.filter((entry): entry is {key?: string} => typeof entry !== 'string' && !!entry && typeof entry === 'object' && 'key' in entry && entry.key === route.key)
+            .length ?? 0) > 1;
+
     // Just go back where we came from if there's navigation history. If there is no history, fallback to the report for
     // this action.
-    const goBack = () => (canGoBack() ? Navigation.goBack() : Navigation.goBack(ROUTES.REPORT_WITH_ID.getRoute(reportIDFromRoute)));
+    const goBack = () => {
+        if (hasPushParamsHistory) {
+            navigation.dispatch(CommonActions.goBack());
+            return;
+        }
+
+        if (canGoBack()) {
+            Navigation.goBack();
+            return;
+        }
+
+        Navigation.goBack(ROUTES.REPORT_WITH_ID.getRoute(reportIDFromRoute));
+    };
 
     return (
         <FullPageNotFoundView

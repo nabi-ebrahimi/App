@@ -104,9 +104,9 @@ function isPopAction(action: PushParamsRouterAction): boolean {
  * TODO: Remove this custom history extension after upgrading to React Navigation 8,
  * which has built-in support for a PUSH_PARAMS-like action.
  *
- * NOTE: The PUSH_PARAMS approach is heuristic and only works in the current setup for the
- * SearchFullscreenNavigator. It may break if new screens are added to that navigator or if
- * other structural changes are made to the navigation hierarchy.
+ * NOTE: The PUSH_PARAMS approach is heuristic and currently supports the navigators that use
+ * this extension (for example SearchFullscreenNavigator and SplitNavigator). If their structure
+ * changes significantly, the history sync logic may need to be revisited.
  */
 function addPushParamsRouterExtension<RouterOptions extends PlatformStackRouterOptions = PlatformStackRouterOptions>(
     originalRouter: PlatformStackRouterFactory<ParamListBase, RouterOptions>,
