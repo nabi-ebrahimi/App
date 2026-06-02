@@ -316,6 +316,9 @@ function Composer({
             // We have to redefine these methods as they are inherited by prototype chain and are not accessible directly
             blur: () => textInput.blur(),
             focus: () => textInput.focus(),
+            setSelection: (start: number, end: number) => {
+                setSelection({start, end});
+            },
             get scrollTop() {
                 return textInput.scrollTop;
             },

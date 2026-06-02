@@ -305,6 +305,7 @@ function ComposerWithSuggestions({
     });
 
     const [selection, setSelection] = useState<TextSelection>(() => currentEditMessageSelection ?? {start: initialText.length, end: initialText.length});
+    const pendingFocusSelectionRef = useRef<Selection | null>(null);
 
     const {accountID: currentUserAccountID} = useCurrentUserPersonalDetails();
 
@@ -316,6 +317,19 @@ function ComposerWithSuggestions({
     const shouldDelayAutoFocusRef = useRef(shouldDelayAutoFocus);
     shouldDelayAutoFocusRef.current = shouldDelayAutoFocus;
 
+    const getEditingSelectionRange = useCallback((): Selection | undefined => {
+        if (editingState !== CONST.REPORT_ACTION_EDIT_MESSAGE_STATE.EDITING) {
+            return undefined;
+        }
+
+        const activeSelection = currentEditMessageSelection ?? selection;
+
+        return {
+            start: activeSelection.start,
+            end: activeSelection.end ?? activeSelection.start,
+        };
+    }, [currentEditMessageSelection, editingState, selection]);
+
     /**
      * Focus the composer text input
      * @param [shouldDelay=false] Impose delay before focusing the composer
@@ -323,15 +337,21 @@ function ComposerWithSuggestions({
      * @param [forceKeyboardIfAlreadyFocused] When already focused, use KeyboardController so the keyboard can show (e.g. edit-in-composer)
      */
     const focus = useCallback((shouldDelay = false, forcedSelectionRange?: Selection, forceKeyboardIfAlreadyFocused = false) => {
+        pendingFocusSelectionRef.current = forcedSelectionRange
+            ? {
+                  start: forcedSelectionRange.start,
+                  end: forcedSelectionRange.end,
+              }
+            : null;
         // If we're stacked above another RHP, wait for the transition to complete before focusing.
         const delay = shouldDelayAutoFocusRef.current ? CONST.ANIMATED_TRANSITION : CONST.COMPOSER_FOCUS_DELAY;
         focusComposerWithDelay(composerRef.current, delay)(shouldDelay, forcedSelectionRange, forceKeyboardIfAlreadyFocused).catch(() => {});
     }, []);
 
     const handleEditFocus = useCallback(() => {
-        focus(true, undefined, true);
+        focus(true, getEditingSelectionRange(), true);
         onFocus();
-    }, [focus, onFocus]);
+    }, [focus, getEditingSelectionRange, onFocus]);
 
     const handleEditValueChange = useCallback(
         (nextValue: string) => {
@@ -697,6 +717,28 @@ function ComposerWithSuggestions({
     const onSelectionChange = useCallback(
         (e: CustomSelectionChangeEvent) => {
             const newSelection = {...e.nativeEvent.selection};
+            const pendingFocusSelection = pendingFocusSelectionRef.current;
+            const normalizedNewSelection = {
+                start: newSelection.start,
+                end: newSelection.end ?? newSelection.start,
+            };
+
+            if (
+                pendingFocusSelection &&
+                composerRef.current?.isFocused() &&
+                normalizedNewSelection.start === 0 &&
+                normalizedNewSelection.end === 0 &&
+                (pendingFocusSelection.start !== 0 || pendingFocusSelection.end !== 0)
+            ) {
+                return;
+            }
+
+            if (pendingFocusSelection && normalizedNewSelection.start === pendingFocusSelection.start && normalizedNewSelection.end === pendingFocusSelection.end) {
+                pendingFocusSelectionRef.current = null;
+            } else if (pendingFocusSelection && (normalizedNewSelection.start !== 0 || normalizedNewSelection.end !== 0)) {
+                pendingFocusSelectionRef.current = null;
+            }
+
             setSelection(newSelection);
             setCurrentEditMessageSelection((prevSelection) => ({
                 ...prevSelection,
