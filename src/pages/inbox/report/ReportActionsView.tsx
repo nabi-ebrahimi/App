@@ -6,6 +6,7 @@ import useCopySelectionHelper from '@hooks/useCopySelectionHelper';
 import useLoadReportActions from '@hooks/useLoadReportActions';
 import useNetwork from '@hooks/useNetwork';
 import useOnyx from '@hooks/useOnyx';
+import usePrevious from '@hooks/usePrevious';
 import useParentReportAction from '@hooks/useParentReportAction';
 import usePendingConciergeResponse from '@hooks/usePendingConciergeResponse';
 import useReportActionsPagination from '@hooks/useReportActionsPagination';
@@ -13,8 +14,11 @@ import useReportActionsVisibility from '@hooks/useReportActionsVisibility';
 import useReportIsArchived from '@hooks/useReportIsArchived';
 import {getReportPreviewAction} from '@libs/actions/IOU/MoneyRequestBuilder';
 import {updateLoadingInitialReportAction} from '@libs/actions/Report';
+import getPlatform from '@libs/getPlatform';
+import {isCreatedAction} from '@libs/ReportActionsUtils';
 import {canUserPerformWriteAction, isReportTransactionThread as isReportTransactionThreadUtil, isUnread} from '@libs/ReportUtils';
 import markOpenReportEnd from '@libs/telemetry/markOpenReportEnd';
+import CONST from '@src/CONST';
 import type ReportScreenNavigationProps from '@pages/inbox/types';
 import ONYXKEYS from '@src/ONYXKEYS';
 import isLoadingOnyxValue from '@src/types/utils/isLoadingOnyxValue';
@@ -32,10 +36,13 @@ type ReportActionsViewProps = {
 function ReportActionsView({reportID, onLayout}: ReportActionsViewProps) {
     const route = useRoute<ReportScreenNavigationProps['route']>();
     const reportActionIDFromRoute = route?.params?.reportActionID;
+    const previousReportActionIDFromRoute = usePrevious(reportActionIDFromRoute);
 
     useCopySelectionHelper();
     usePendingConciergeResponse(reportID);
     const {isOffline} = useNetwork();
+    const platform = getPlatform();
+    const isWeb = platform === CONST.PLATFORM.WEB || platform === CONST.PLATFORM.MOBILE_WEB;
 
     const [report, reportResult] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`);
 
@@ -151,6 +158,12 @@ function ReportActionsView({reportID, onLayout}: ReportActionsViewProps) {
     }, [report, shouldShowSkeleton]);
 
     const isReportUnread = isUnread(report, transactionThreadReport, isReportArchived);
+    const indexOfLinkedMessage = reportActionIDFromRoute ? reportActions.findIndex((action) => String(action.reportActionID) === String(reportActionIDFromRoute)) : -1;
+    const doesCreatedActionExist = !!reportActions.findLast((action) => isCreatedAction(action));
+    const isLinkedMessageAvailable = indexOfLinkedMessage > -1;
+    const isLinkedMessagePageReady =
+        isLinkedMessageAvailable && (reportActions.length - indexOfLinkedMessage >= CONST.REPORT.MIN_INITIAL_REPORT_ACTION_COUNT || doesCreatedActionExist);
+    const isOpeningNewLinkedMessage = !!reportActionIDFromRoute && reportActionIDFromRoute !== previousReportActionIDFromRoute;
 
     // When opening an unread report, it is very likely that the message we will open to is not the latest,
     // which is the only one we will have in cache.
@@ -161,9 +174,15 @@ function ReportActionsView({reportID, onLayout}: ReportActionsViewProps) {
     // for this report: after `hasOnceLoadedReportActions` is set, a later "mark as unread" must not
     // bring back this loading gate (we are not re-opening the report from a cold cache).
     const isUnreadMessagePageLoadingInitially = !reportActionIDFromRoute && isReportUnread && !oldestUnreadReportAction && !hasOnceLoadedReportActions;
+    const isLinkedMessagePageLoadingOnWeb =
+        isWeb &&
+        !!reportActionIDFromRoute &&
+        !isOffline &&
+        !isLinkedMessagePageReady &&
+        (isOpeningNewLinkedMessage || !!reportLoadingState?.isLoadingInitialReportActions);
 
     // Once all the above conditions are met, we can consider the report ready.
-    const isReportLoading = isInitiallyLoadingReport || isUnreadMessagePageLoadingInitially;
+    const isReportLoading = isInitiallyLoadingReport || isUnreadMessagePageLoadingInitially || isLinkedMessagePageLoadingOnWeb;
     const isReportReady = isOffline || !isReportLoading;
 
     if (isLoadingOnyxValue(reportResult) || !report || !isReportReady || shouldShowSkeleton) {
