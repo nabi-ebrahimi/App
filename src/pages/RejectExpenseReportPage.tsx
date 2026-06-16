@@ -1,3 +1,4 @@
+import {getReportPolicyID} from '@selectors/Report';
 import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {View} from 'react-native';
 import {useDelegateNoAccessActions, useDelegateNoAccessState} from '@components/DelegateNoAccessModalProvider';
@@ -15,12 +16,14 @@ import useAutoFocusInput from '@hooks/useAutoFocusInput';
 import useCurrentUserPersonalDetails from '@hooks/useCurrentUserPersonalDetails';
 import useLocalize from '@hooks/useLocalize';
 import useOnyx from '@hooks/useOnyx';
+import usePolicy from '@hooks/usePolicy';
 import useThemeStyles from '@hooks/useThemeStyles';
 import getNonEmptyStringOnyxID from '@libs/getNonEmptyStringOnyxID';
 import Navigation from '@libs/Navigation/Navigation';
 import type {PlatformStackScreenProps} from '@libs/Navigation/PlatformStackNavigation/types';
 import type {MoneyRequestNavigatorParamList} from '@libs/Navigation/types';
 import {getDisplayNameOrDefault, getLoginByAccountID, getPersonalDetailByEmail} from '@libs/PersonalDetailsUtils';
+import {isDelayedSubmissionEnabled} from '@libs/PolicyUtils';
 import {getSortedReportActions} from '@libs/ReportActionsUtils';
 import variables from '@styles/variables';
 import {rejectExpenseReport} from '@userActions/IOU/RejectMoneyRequest';
@@ -39,7 +42,11 @@ function RejectExpenseReportPage({route}: RejectExpenseReportPageProps) {
     const currentUserPersonalDetails = useCurrentUserPersonalDetails();
 
     const [report] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${getNonEmptyStringOnyxID(reportID)}`);
+    const [reportPolicyID] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${getNonEmptyStringOnyxID(reportID)}`, {selector: getReportPolicyID});
     const [reportActions] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT_ACTIONS}${getNonEmptyStringOnyxID(reportID)}`);
+    const [betas] = useOnyx(ONYXKEYS.BETAS);
+    const policy = usePolicy(reportPolicyID);
+    const isPolicyDelayedSubmissionEnabled = policy ? isDelayedSubmissionEnabled(policy) : false;
     const {isDelegateAccessRestricted} = useDelegateNoAccessState();
     const {showDelegateNoAccessModal} = useDelegateNoAccessActions();
     const [selectedTargetAccountID, setSelectedTargetAccountID] = useState<string>('');
@@ -81,7 +88,11 @@ function RejectExpenseReportPage({route}: RejectExpenseReportPageProps) {
     }, [reportActions]);
 
     const submitterAccountID = report?.ownerAccountID ?? CONST.DEFAULT_NUMBER_ID;
-    const hasPreviousApprover = previousApprover !== null && previousApprover.accountID !== currentUserPersonalDetails?.accountID && previousApprover.accountID !== submitterAccountID;
+    const hasPreviousApprover =
+        isPolicyDelayedSubmissionEnabled &&
+        previousApprover !== null &&
+        previousApprover.accountID !== currentUserPersonalDetails?.accountID &&
+        previousApprover.accountID !== submitterAccountID;
 
     const options = [];
 
@@ -144,6 +155,9 @@ function RejectExpenseReportPage({route}: RejectExpenseReportPageProps) {
             currentUserPersonalDetails?.accountID,
             currentUserPersonalDetails?.displayName,
             currentUserPersonalDetails?.avatar,
+            currentUserPersonalDetails?.login,
+            policy,
+            betas,
         );
         Navigation.goBack();
     };

@@ -998,9 +998,21 @@ function rejectExpenseReport(
     currentUserAccountID: number | undefined,
     currentUserDisplayName: string | undefined,
     currentUserAvatarSource: AvatarSource | undefined,
-) {
+    currentUserLogin?: string,
+    policy?: OnyxEntry<OnyxTypes.Policy>,
+    betas?: OnyxEntry<OnyxTypes.Beta[]>,
+): Route | undefined {
     const {reportID} = report;
     const isRejectToSubmitter = targetAccountID === report.ownerAccountID;
+
+    if (policy && !isDelayedSubmissionEnabled(policy) && isRejectToSubmitter && currentUserAccountID && currentUserLogin) {
+        const reportTransactions = getReportTransactions(reportID);
+        if (reportTransactions.length === 1) {
+            const [transaction] = reportTransactions;
+            return rejectMoneyRequest(transaction.transactionID, reportID, comment, policy, currentUserAccountID, currentUserLogin, betas);
+        }
+    }
+
     const baseTimestamp = DateUtils.getDBTime();
     const optimisticRejectAction = buildOptimisticReportLevelRejectAction(isRejectToSubmitter, currentUserAccountID, currentUserDisplayName, currentUserAvatarSource, baseTimestamp);
     const parsedComment = getParsedComment(comment);
@@ -1176,6 +1188,8 @@ function rejectExpenseReport(
     };
 
     API.write(WRITE_COMMANDS.REJECT_EXPENSE_REPORT, parameters, {optimisticData, successData, failureData});
+
+    return;
 }
 
 export {dismissRejectUseExplanation, prepareRejectMoneyRequestData, rejectMoneyRequest, markRejectViolationAsResolved, rejectExpenseReport};
