@@ -4,6 +4,7 @@ import {View} from 'react-native';
 import type {OnyxCollection} from 'react-native-onyx';
 import Avatar from '@components/Avatar';
 import Icon from '@components/Icon';
+import type {LocaleContextProps} from '@components/LocaleContextProvider';
 import Text from '@components/Text';
 import type {SearchQueryItem} from '@components/Search/SearchList/ListItem/SearchQueryListItem';
 import {useCurrencyListActions} from '@hooks/useCurrencyList';
@@ -19,6 +20,7 @@ import useTheme from '@hooks/useTheme';
 import useThemeStyles from '@hooks/useThemeStyles';
 import {startDistanceRequest, startMoneyRequest} from '@libs/actions/IOU/MoneyRequest';
 import {createNewReport, startNewChat} from '@libs/actions/Report';
+import {isConnectionInProgress} from '@libs/actions/connections';
 import getIconForAction from '@libs/getIconForAction';
 import interceptAnonymousUser from '@libs/interceptAnonymousUser';
 import Navigation from '@libs/Navigation/Navigation';
@@ -114,6 +116,10 @@ function matchesNavigationQuery(query: string, ...values: Array<string | undefin
     return values.some((value) => StringUtils.normalizeAccents(value ?? '').toLowerCase().includes(normalizedQuery));
 }
 
+function getGoToText(translate: LocaleContextProps['translate'], destination: string) {
+    return translate('search.goTo', {destination});
+}
+
 function useNavigationSuggestions(query: string): SearchQueryItem[] {
     const {translate} = useLocalize();
     const {shouldUseNarrowLayout} = useResponsiveLayout();
@@ -129,6 +135,7 @@ function useNavigationSuggestions(query: string): SearchQueryItem[] {
     const icons = useMemoizedLazyExpensifyIcons([
         'Home',
         'Inbox',
+        'Basket',
         'ReceiptMultiple',
         'Buildings',
         'Gear',
@@ -139,6 +146,11 @@ function useNavigationSuggestions(query: string): SearchQueryItem[] {
         'Lock',
         'Bot',
         'CreditCard',
+        'MoneyBag',
+        'MoneyHourglass',
+        'CreditCardHourglass',
+        'Bank',
+        'User',
         'QuestionMark',
         'Info',
         'Lightbulb',
@@ -162,6 +174,9 @@ function useNavigationSuggestions(query: string): SearchQueryItem[] {
         'ChatBubble',
         'Suitcase',
         'NewWorkspace',
+        'Pencil',
+        'ThumbsUp',
+        'CheckCircle',
         'Cash',
         'Transfer',
         'MoneyCircle',
@@ -207,38 +222,51 @@ function useNavigationSuggestions(query: string): SearchQueryItem[] {
     const spendRoute = ROUTES.SEARCH_ROOT.getRoute({query: lastSpendQuery ?? defaultSpendQuery});
 
     const topLevelItems = useMemo(
-        () => [
-            {
-                text: translate('common.home'),
-                singleIcon: icons.Home,
-                action: () => Navigation.navigate(ROUTES.HOME),
-                keyForList: 'topLevelHome',
-            },
-            {
-                text: translate('common.inbox'),
-                singleIcon: icons.Inbox,
-                action: () => Navigation.navigate(ROUTES.INBOX),
-                keyForList: 'topLevelInbox',
-            },
-            {
-                text: translate('common.spend'),
-                singleIcon: icons.ReceiptMultiple,
-                action: () => Navigation.navigate(spendRoute),
-                keyForList: 'topLevelSpend',
-            },
-            {
-                text: translate('common.workspacesTabTitle'),
-                singleIcon: icons.Buildings,
-                action: restoreWorkspacesTab,
-                keyForList: 'topLevelWorkspaces',
-            },
-            {
-                text: translate('initialSettingsPage.account'),
-                singleIcon: icons.Gear,
-                action: () => Navigation.navigate(ROUTES.SETTINGS),
-                keyForList: 'topLevelAccount',
-            },
-        ],
+        () => {
+            const homeText = translate('common.home');
+            const inboxText = translate('common.inbox');
+            const spendText = translate('common.spend');
+            const workspacesText = translate('common.workspacesTabTitle');
+            const accountText = translate('initialSettingsPage.account');
+
+            return [
+                {
+                    text: getGoToText(translate, homeText),
+                    singleIcon: icons.Home,
+                    action: () => Navigation.navigate(ROUTES.HOME),
+                    keyForList: 'topLevelHome',
+                    matchTerms: [homeText],
+                },
+                {
+                    text: getGoToText(translate, inboxText),
+                    singleIcon: icons.Inbox,
+                    action: () => Navigation.navigate(ROUTES.INBOX),
+                    keyForList: 'topLevelInbox',
+                    matchTerms: [inboxText],
+                },
+                {
+                    text: getGoToText(translate, spendText),
+                    singleIcon: icons.ReceiptMultiple,
+                    action: () => Navigation.navigate(spendRoute),
+                    keyForList: 'topLevelSpend',
+                    matchTerms: [spendText],
+                },
+                {
+                    text: getGoToText(translate, workspacesText),
+                    singleIcon: icons.Buildings,
+                    action: restoreWorkspacesTab,
+                    keyForList: 'topLevelWorkspaces',
+                    matchTerms: [workspacesText],
+                },
+                {
+                    text: getGoToText(translate, accountText),
+                    singleIcon: icons.Gear,
+                    action: () => Navigation.navigate(ROUTES.SETTINGS),
+                    keyForList: 'topLevelAccount',
+                    matchTerms: [accountText],
+                },
+            ];
+        },
         [icons.Buildings, icons.Gear, icons.Home, icons.Inbox, icons.ReceiptMultiple, restoreWorkspacesTab, spendRoute, translate],
     );
 
@@ -247,17 +275,20 @@ function useNavigationSuggestions(query: string): SearchQueryItem[] {
             typeMenuSections
                 .filter((section) => section.translationPath !== 'search.savedSearchesMenuItemTitle')
                 .flatMap((section) =>
-                    section.menuItems.map((item) => ({
-                        text: translate(item.translationPath),
-                        singleIcon: typeof item.icon === 'string' ? icons[item.icon] : item.icon,
-                        action: () => {
-                            setSearchContext(false);
-                            Navigation.navigate(ROUTES.SEARCH_ROOT.getRoute({query: item.searchQuery}));
-                        },
-                        keyForList: `spend_${item.key}`,
-                        rightElement: spendContext,
-                        matchTerms: [translate(item.translationPath), translate(section.translationPath)],
-                    })),
+                    section.menuItems.map((item) => {
+                        const itemText = translate(item.translationPath);
+                        return {
+                            text: getGoToText(translate, itemText),
+                            singleIcon: typeof item.icon === 'string' ? icons[item.icon] : item.icon,
+                            action: () => {
+                                setSearchContext(false);
+                                Navigation.navigate(ROUTES.SEARCH_ROOT.getRoute({query: item.searchQuery}));
+                            },
+                            keyForList: `spend_${item.key}`,
+                            rightElement: spendContext,
+                            matchTerms: [itemText, translate(section.translationPath)],
+                        };
+                    }),
                 ),
         [icons, spendContext, translate, typeMenuSections],
     );
@@ -273,14 +304,17 @@ function useNavigationSuggestions(query: string): SearchQueryItem[] {
         () =>
             [...accountMenuItemsData.items, ...generalMenuItemsData.items]
                 .filter((item) => !excludedSettingsItems.has(item.translationKey))
-                .map((item) => ({
-                    text: translate(item.translationKey),
-                    singleIcon: item.icon,
-                    action: item.action,
-                    keyForList: `account_${item.translationKey}`,
-                    rightElement: accountContext,
-                    matchTerms: [translate(item.translationKey), translate('initialSettingsPage.account')],
-                })),
+                .map((item) => {
+                    const itemText = translate(item.translationKey);
+                    return {
+                        text: getGoToText(translate, itemText),
+                        singleIcon: item.icon,
+                        action: item.action,
+                        keyForList: `account_${item.translationKey}`,
+                        rightElement: accountContext,
+                        matchTerms: [itemText, translate('initialSettingsPage.account')],
+                    };
+                }),
         [accountContext, accountMenuItemsData.items, generalMenuItemsData.items, translate],
     );
 
@@ -316,21 +350,24 @@ function useNavigationSuggestions(query: string): SearchQueryItem[] {
                     Gear: icons.Gear,
                 },
                 isRoomsPageBetaEnabled: isBetaEnabled(CONST.BETAS.WORKSPACE_ROOMS_PAGE),
-                connectionSyncProgress: connectionSyncProgress?.[`${ONYXKEYS.COLLECTION.POLICY_CONNECTION_SYNC_PROGRESS}${policy.id}`],
+                isConnectionInProgress: isConnectionInProgress(connectionSyncProgress?.[`${ONYXKEYS.COLLECTION.POLICY_CONNECTION_SYNC_PROGRESS}${policy.id}`], policy),
                 policyCategories: policyCategories?.[`${ONYXKEYS.COLLECTION.POLICY_CATEGORIES}${policy.id}`],
                 shouldShowEnterCredentialsError: !!policy.receiptPartners?.uber?.error,
                 shouldShowRBR: !!cardFeedErrors?.shouldShowRbrForWorkspaceAccountID?.[policy.policyAccountID ?? CONST.DEFAULT_NUMBER_ID],
                 convertToDisplayString,
             });
 
-            return items.map((item) => ({
-                text: translate(item.translationKey),
-                singleIcon: item.icon,
-                action: () => navigateToWorkspaceSettingsRoute(item.route, policy.id, shouldUseNarrowLayout),
-                keyForList: `workspace_${policy.id}_${item.screenName}`,
-                rightElement: <WorkspaceContext policy={policy} />,
-                matchTerms: [translate(item.translationKey), policy.name],
-            }));
+            return items.map((item) => {
+                const itemText = translate(item.translationKey);
+                return {
+                    text: getGoToText(translate, itemText),
+                    singleIcon: item.icon,
+                    action: () => navigateToWorkspaceSettingsRoute(item.route, policy.id, shouldUseNarrowLayout),
+                    keyForList: `workspace_${policy.id}_${item.screenName}`,
+                    rightElement: <WorkspaceContext policy={policy} />,
+                    matchTerms: [itemText, policy.name],
+                };
+            });
         });
     }, [allPolicies, cardFeedErrors?.shouldShowRbrForWorkspaceAccountID, connectionSyncProgress, convertToDisplayString, currentUserLogin, icons, isBetaEnabled, isOffline, policyCategories, shouldUseNarrowLayout, translate]);
 

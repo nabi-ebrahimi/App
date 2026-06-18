@@ -1,4 +1,6 @@
 import type {ValueOf} from 'type-fest';
+import {shouldShowQBOReimbursableExportDestinationAccountError} from '@libs/actions/connections/QuickbooksOnline';
+import {isAnyHRConnected, isMergeHRCompleteSetupNeeded} from '@libs/HRUtils';
 import {
     canMemberRead,
     canPolicyAccessFeature,
@@ -6,14 +8,11 @@ import {
     hasPolicyCategoriesError,
     hasPolicyRulesError,
     isGroupPolicy,
-    isMergeHRCompleteSetupNeeded,
     isTimeTrackingEnabled,
     shouldShowEmployeeListError,
-    shouldShowQBOReimbursableExportDestinationAccountError,
     shouldShowSyncError,
     shouldShowTaxRateError,
 } from '@libs/PolicyUtils';
-import {isAnyHRConnected} from '@libs/HRUtils';
 import type {PolicyFeature} from '@libs/PolicyUtils';
 import type WORKSPACE_TO_RHP from '@navigation/linkingConfig/RELATIONS/WORKSPACE_TO_RHP';
 import type {TranslationPaths} from '@src/languages/types';
@@ -69,7 +68,7 @@ type GetWorkspaceMenuItemsParams = {
     icons: WorkspaceMenuIconMap;
     isRoomsPageBetaEnabled: boolean;
     highlightedFeature?: PolicyFeatureName;
-    connectionSyncProgress?: OnyxTypes.PolicyConnectionSyncProgress;
+    isConnectionInProgress?: boolean;
     policyCategories?: OnyxTypes.PolicyCategories;
     shouldShowEnterCredentialsError?: boolean;
     shouldShowRBR?: boolean;
@@ -83,7 +82,7 @@ function getWorkspaceMenuItems({
     icons,
     isRoomsPageBetaEnabled,
     highlightedFeature,
-    connectionSyncProgress,
+    isConnectionInProgress = false,
     policyCategories,
     shouldShowEnterCredentialsError = false,
     shouldShowRBR = false,
@@ -107,7 +106,7 @@ function getWorkspaceMenuItems({
     ].some(canReadPolicyFeature);
 
     const accountingConnectionNames = CONST.POLICY.CONNECTIONS.ACCOUNTING_CONNECTION_NAMES;
-    const hasSyncError = shouldShowSyncError(policy, connectionSyncProgress, accountingConnectionNames);
+    const hasSyncError = shouldShowSyncError(policy, isConnectionInProgress, accountingConnectionNames);
     const hasMembersError = shouldShowEmployeeListError(policy);
     const hasPolicyCategoryError = hasPolicyCategoriesError(policyCategories);
     const hasGeneralSettingsError =
