@@ -79,6 +79,8 @@ type WorkspaceContextProps = {
     policy: OnyxTypes.Policy;
 };
 
+const MAX_NAVIGATION_SUGGESTIONS = 8;
+
 function WorkspaceContext({policy}: WorkspaceContextProps) {
     const styles = useThemeStyles();
 
@@ -286,7 +288,7 @@ function useNavigationSuggestions(query: string): SearchQueryItem[] {
                             },
                             keyForList: `spend_${item.key}`,
                             rightElement: spendContext,
-                            matchTerms: [itemText, translate(section.translationPath)],
+                            matchTerms: [itemText],
                         };
                     }),
                 ),
@@ -312,7 +314,7 @@ function useNavigationSuggestions(query: string): SearchQueryItem[] {
                         action: item.action,
                         keyForList: `account_${item.translationKey}`,
                         rightElement: accountContext,
-                        matchTerms: [itemText, translate('initialSettingsPage.account')],
+                        matchTerms: [itemText],
                     };
                 }),
         [accountContext, accountMenuItemsData.items, generalMenuItemsData.items, translate],
@@ -365,7 +367,7 @@ function useNavigationSuggestions(query: string): SearchQueryItem[] {
                     action: () => navigateToWorkspaceSettingsRoute(item.route, policy.id, shouldUseNarrowLayout),
                     keyForList: `workspace_${policy.id}_${item.screenName}`,
                     rightElement: <WorkspaceContext policy={policy} />,
-                    matchTerms: [itemText, policy.name],
+                    matchTerms: [itemText],
                 };
             });
         });
@@ -547,7 +549,8 @@ function useNavigationSuggestions(query: string): SearchQueryItem[] {
             ...createItems,
         ]
             .map(buildItem)
-            .filter(Boolean) as SearchQueryItem[];
+            .filter(Boolean)
+            .slice(0, MAX_NAVIGATION_SUGGESTIONS) as SearchQueryItem[];
     }, [accountItems, createItems, query, spendItems, topLevelItems, workspaceItems]);
 }
 
