@@ -9,6 +9,9 @@ const WORKSPACE_ROUTE_PATTERN = /^\/?workspaces\/[^/]+(\/.*)?$/;
 type NavigationRouteWithState = {
     name?: string;
     key?: string;
+    params?: {
+        policyID?: string;
+    };
     state?: {
         key?: string;
         routes?: NavigationRouteWithState[];
@@ -67,17 +70,16 @@ function navigateToWorkspaceSettingsRoute(targetRoute: Route, policyID: string, 
     }
 
     const activeRoute = Navigation.getActiveRouteWithoutParams();
-    const currentSuffix = getWorkspaceRouteSuffix(activeRoute);
     const targetSuffix = getWorkspaceRouteSuffix(targetRoute);
-    const isSameWorkspaceSettingsScreen = !!currentSuffix && currentSuffix === targetSuffix && activeRoute !== targetRoute && WORKSPACE_ROUTE_PATTERN.test(activeRoute);
+    const isWorkspaceSettingsTransition = targetSuffix !== undefined && activeRoute !== targetRoute && WORKSPACE_ROUTE_PATTERN.test(activeRoute);
 
-    if (!isSameWorkspaceSettingsScreen || targetSuffix === undefined) {
+    if (!isWorkspaceSettingsTransition) {
         Navigation.navigate(targetRoute);
         return;
     }
 
     const workspaceSidebarRoute = getActiveWorkspaceSidebarRoute();
-    if (workspaceSidebarRoute?.sidebarRoute.key) {
+    if (workspaceSidebarRoute?.sidebarRoute.key && workspaceSidebarRoute.sidebarRoute.params?.policyID !== policyID) {
         Navigation.setParams({policyID}, workspaceSidebarRoute.sidebarRoute.key, workspaceSidebarRoute.splitStateKey);
     }
 
