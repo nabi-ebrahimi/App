@@ -113,6 +113,8 @@ function ReportFetchHandler() {
     const transactionThreadReportID = getOneTransactionThreadReportID(report, chatReport, reportActions ?? [], isOffline, reportTransactionIDs);
     const [transactionThreadReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${transactionThreadReportID}`);
     const prevTransactionThreadReportID = usePrevious(transactionThreadReportID);
+    const prevCreateChatPendingField = usePrevious(report?.pendingFields?.createChat);
+
 
     const isTransactionThreadView = isReportTransactionThread(report);
 
@@ -328,13 +330,27 @@ function ReportFetchHandler() {
                 didSubscribeToReportLeavingEvents.current = true;
             });
         }
+         const didJustCreateChatSuccessfully = prevCreateChatPendingField === CONST.RED_BRICK_ROAD_PENDING_ACTION.ADD && didCreateReportSuccessfully;
+         if (didJustCreateChatSuccessfully && !reportLoadingState.hasOnceLoadedReportActions && !isOffline) {
+            fetchReport();
+        }
         return () => {
             if (!interactionTask) {
                 return;
             }
             interactionTask.cancel();
         };
-    }, [report?.reportID, didSubscribeToReportLeavingEvents, reportIDFromRoute, report?.pendingFields, currentUserAccountID]);
+    }, [
+        report?.reportID,
+        didSubscribeToReportLeavingEvents,
+        reportIDFromRoute,
+        report?.pendingFields,
+        currentUserAccountID,
+        prevCreateChatPendingField,
+        reportMetadata.isOptimisticReport,
+        reportLoadingState.hasOnceLoadedReportActions,
+        isOffline,
+    ]);
 
     useEffect(() => {
         if (!!report?.lastReadTime || !isTaskReport(report)) {
