@@ -130,6 +130,7 @@ function buildOnyxDataForInvoice(
     | typeof ONYXKEYS.PERSONAL_DETAILS_LIST
     | typeof ONYXKEYS.COLLECTION.POLICY
     | typeof ONYXKEYS.COLLECTION.SNAPSHOT
+    | typeof ONYXKEYS.COLLECTION.RAM_ONLY_REPORT_LOADING_STATE
 > {
     const {chat, iou, transactionParams, policyParams, optimisticData: optimisticDataParams, companyName, companyWebsite, participant} = invoiceParams;
     const transaction = transactionParams.transaction;
@@ -147,6 +148,7 @@ function buildOnyxDataForInvoice(
             | typeof ONYXKEYS.PERSONAL_DETAILS_LIST
             | typeof ONYXKEYS.COLLECTION.POLICY
             | typeof ONYXKEYS.COLLECTION.SNAPSHOT
+            | typeof ONYXKEYS.COLLECTION.RAM_ONLY_REPORT_LOADING_STATE
         >
     > = [
         {
@@ -252,6 +254,14 @@ function buildOnyxDataForInvoice(
                 key: `${ONYXKEYS.COLLECTION.REPORT_METADATA}${chat.report?.reportID}`,
                 value: {
                     isOptimisticReport: true,
+                },
+            });
+            optimisticData.push({
+                onyxMethod: Onyx.METHOD.MERGE,
+                key: `${ONYXKEYS.COLLECTION.RAM_ONLY_REPORT_LOADING_STATE}${chat.report?.reportID}`,
+                value: {
+                    hasOnceLoadedReportActions: true,
+                    isLoadingInitialReportActions: false,
                 },
             });
         }

@@ -288,9 +288,13 @@ function ReportFetchHandler() {
     useEffect(() => {
         // This function is triggered when a user clicks on a link to navigate to a report.
         // For each link click, we retrieve the report data again, even though it may already be cached.
-        // There should be only one openReport execution per page start or navigating
+        // There should be only one openReport execution per page start or navigating.
+        // reportMetadata?.isOptimisticReport is included so that when a newly created optimistic CHAT
+        // room (e.g. a first-time invoice room) is confirmed by the server and the flag flips false,
+        // fetchReport re-runs and openReport fires — anchoring REPORT_ACTIONS_PAGES and fetching any
+        // server actions that arrived outside the originating API response.
         fetchReport();
-    }, [route, isLinkedMessagePageReady, reportActionIDFromRoute]);
+    }, [route, isLinkedMessagePageReady, reportActionIDFromRoute, reportMetadata?.isOptimisticReport]);
 
     useEffect(() => {
         // This function is only triggered when a user is invited to a room after opening the link.
