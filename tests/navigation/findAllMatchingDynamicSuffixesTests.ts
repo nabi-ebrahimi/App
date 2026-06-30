@@ -10,6 +10,8 @@ jest.mock('@src/ROUTES', () => ({
         KEYBOARD_SHORTCUTS: {path: 'keyboard-shortcuts'},
         OPT_TRAILING: {path: 'opt-page/:id?'},
         OPT_MIDDLE: {path: 'wrap/:p?/end'},
+        SETTINGS_TAGS_EDIT: {path: 'edit/:orderWeight'},
+        WORKSPACE_EXPENSIFY_CARD_ISSUE_NEW_SPEND_RULE_MERCHANT_EDIT: {path: 'edit/:merchantIndex'},
         CATEGORY_GL_CODE: {path: 'gl-code'},
         TAG_SETTINGS: {path: 'tag-settings/:orderWeight/:tagName'},
         TAG_APPROVER: {path: 'tag-approver'},
@@ -224,5 +226,12 @@ describe('findAllMatchingDynamicSuffixes', () => {
 
     it('should return a single-element array when only one candidate exists (tag-approver at the end)', () => {
         expect(findAllMatchingDynamicSuffixes('/settings/tags/tag-settings/0/tagname/tag-approver')).toEqual([{pattern: 'tag-approver', actualSuffix: 'tag-approver', pathParams: {}}]);
+    });
+
+    it('should return both ambiguous parametric edit routes for the same suffix', () => {
+        expect(findAllMatchingDynamicSuffixes('/settings/tags/ABC123/tags/settings/edit/0')).toEqual([
+            {pattern: 'edit/:orderWeight', actualSuffix: 'edit/0', pathParams: {orderWeight: '0'}},
+            {pattern: 'edit/:merchantIndex', actualSuffix: 'edit/0', pathParams: {merchantIndex: '0'}},
+        ]);
     });
 });
