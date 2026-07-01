@@ -65,6 +65,115 @@ function isRouteWithReportID(route: NavigationPartialRoute): route is Route<stri
     return route.params !== undefined && 'reportID' in route.params && typeof route.params.reportID === 'string';
 }
 
+function isSplitExpenseRoute(route: NavigationPartialRoute): boolean {
+    return route.name === SCREENS.MONEY_REQUEST.SPLIT_EXPENSE || route.name === SCREENS.MONEY_REQUEST.SPLIT_EXPENSE_SEARCH;
+}
+
+function getFocusedChildRoute(route: NavigationPartialRoute): NavigationPartialRoute | undefined {
+    const state = route.state as PartialState<NavigationState> | undefined;
+    return state?.routes.at(state.index ?? state.routes.length - 1) as NavigationPartialRoute | undefined;
+}
+
+function getRouteWithEffectiveRoutingMetadata(route: NavigationPartialRoute): NavigationPartialRoute {
+    if (!isSplitExpenseRoute(route)) {
+        return route;
+    }
+
+    const focusedChildRoute = getFocusedChildRoute(route);
+    if (!focusedChildRoute) {
+        return route;
+    }
+
+    const childBackTo = focusedChildRoute.params && 'backTo' in focusedChildRoute.params && typeof focusedChildRoute.params.backTo === 'string' ? focusedChildRoute.params.backTo : undefined;
+    const routeBackTo = route.params && 'backTo' in route.params && typeof route.params.backTo === 'string' ? route.params.backTo : undefined;
+
+    if (!childBackTo && !focusedChildRoute.path) {
+        return route;
+    }
+
+    return {
+        ...route,
+        path: route.path ?? focusedChildRoute.path,
+        params: {
+            ...route.params,
+            ...(!routeBackTo && childBackTo ? {backTo: childBackTo} : {}),
+        },
+    };
+}
+
+function getRouteIdentity(route: NavigationPartialRoute): string {
+    return `${route.name}:${JSON.stringify(route.params ?? {})}`;
+}
+
+function getRightModalRouteFromState(state: PartialState<NavigationState> | undefined): NavigationPartialRoute | undefined {
+    return state?.routes.find((route) => route.name === NAVIGATORS.RIGHT_MODAL_NAVIGATOR) as NavigationPartialRoute | undefined;
+}
+
+function getRightModalRoutesFromBackTo(route: NavigationPartialRoute): NavigationPartialRoute[] {
+    if (!isRouteWithBackToParam(route)) {
+        return [];
+    }
+
+    const stateForBackTo = getStateFromPath(route.params.backTo as RoutePath);
+    const lastRoute = stateForBackTo?.routes.at(-1);
+    if (!stateForBackTo || !lastRoute || lastRoute.name === SCREENS.NOT_FOUND) {
+        return [];
+    }
+
+    const rightModalRoute = getRightModalRouteFromState(stateForBackTo);
+    const rightModalState = rightModalRoute?.state as PartialState<NavigationState> | undefined;
+    return (rightModalState?.routes ?? []) as NavigationPartialRoute[];
+}
+
+function mergeRightModalRoutes(currentState: PartialState<NavigationState<RootNavigatorParamList>>, routesToPrepend: NavigationPartialRoute[]): PartialState<NavigationState<RootNavigatorParamList>> {
+    if (routesToPrepend.length === 0) {
+        return currentState;
+    }
+
+    const rightModalRoute = getRightModalRouteFromState(currentState);
+    const rightModalState = rightModalRoute?.state as PartialState<NavigationState> | undefined;
+    if (!rightModalRoute || !rightModalState) {
+        return currentState;
+    }
+
+    const existingRoutes = (rightModalState.routes ?? []) as NavigationPartialRoute[];
+    const existingRouteIdentities = new Set(existingRoutes.map(getRouteIdentity));
+    const missingRoutes = routesToPrepend.filter((route) => !existingRouteIdentities.has(getRouteIdentity(route)));
+
+    if (missingRoutes.length === 0) {
+        return currentState;
+    }
+
+    const updatedRightModalRoute = {
+        ...rightModalRoute,
+        state: getRoutesWithIndex([...missingRoutes, ...existingRoutes]),
+    };
+
+    return {
+        ...currentState,
+        routes: currentState.routes.map((route) => (route === rightModalRoute ? updatedRightModalRoute : route)) as PartialState<NavigationState<RootNavigatorParamList>>['routes'],
+    };
+}
+
+function restoreSplitExpenseBackgroundStack(
+    currentState: PartialState<NavigationState<RootNavigatorParamList>>,
+    route: NavigationPartialRoute,
+): PartialState<NavigationState<RootNavigatorParamList>> | undefined {
+    if (!isSplitExpenseRoute(route)) {
+        return undefined;
+    }
+
+    const matchingRootRoute = getMatchingFullScreenRoute(route);
+    if (!matchingRootRoute) {
+        return undefined;
+    }
+
+    const rightModalRoutesFromBackTo = getRightModalRoutesFromBackTo(route);
+    const stateWithRestoredRightModalRoutes = mergeRightModalRoutes(currentState, rightModalRoutesFromBackTo);
+
+    return getRoutesWithIndex([matchingRootRoute, ...stateWithRestoredRightModalRoutes.routes]) as PartialState<NavigationState<RootNavigatorParamList>>;
+}
+
 /**
  * Get the appropriate screen name for RHP_TO_SEARCH lookup.
  * Split tabs (amount, percentage, date) are nested routes within SPLIT_EXPENSE/SPLIT_EXPENSE_SEARCH.
@@ -349,7 +458,13 @@ function getAdaptedState(state: PartialState<NavigationState<RootNavigatorParamL
         }
 
         if (focusedRoute) {
-            const matchingRootRoute = getMatchingFullScreenRoute(focusedRoute);
+            const routeForFullScreenMatching = getRouteWithEffectiveRoutingMetadata(focusedRoute);
+            const stateWithRestoredSplitExpenseBackground = restoreSplitExpenseBackgroundStack(currentState, routeForFullScreenMatching);
+            if (stateWithRestoredSplitExpenseBackground) {
+                return stateWithRestoredSplitExpenseBackground;
+            }
+
+            const matchingRootRoute = getMatchingFullScreenRoute(routeForFullScreenMatching);
 
             // If there is a matching root route, add it to the state.
             if (matchingRootRoute) {
