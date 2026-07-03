@@ -248,7 +248,13 @@ function buildOnyxDataForInvoice(
                 ...chat.report,
                 lastReadTime: DateUtils.getDBTime(),
                 iouReportID: iou.report?.reportID,
-                ...(chat.isNewReport ? {pendingFields: {createChat: CONST.RED_BRICK_ROAD_PENDING_ACTION.ADD}} : {}),
+                ...(chat.isNewReport
+                    ? {
+                          pendingFields: {
+                              createChat: CONST.RED_BRICK_ROAD_PENDING_ACTION.ADD,
+                          },
+                      }
+                    : {}),
             },
         });
 
@@ -422,7 +428,13 @@ function buildOnyxDataForInvoice(
     const errorKey = DateUtils.getMicroseconds();
 
     const failureData: Array<
-        OnyxUpdate<typeof ONYXKEYS.COLLECTION.REPORT | typeof ONYXKEYS.COLLECTION.TRANSACTION | typeof ONYXKEYS.COLLECTION.REPORT_ACTIONS | typeof ONYXKEYS.COLLECTION.POLICY>
+        OnyxUpdate<
+            | typeof ONYXKEYS.COLLECTION.REPORT
+            | typeof ONYXKEYS.COLLECTION.TRANSACTION
+            | typeof ONYXKEYS.COLLECTION.REPORT_ACTIONS
+            | typeof ONYXKEYS.COLLECTION.POLICY
+            | typeof ONYXKEYS.COLLECTION.RAM_ONLY_REPORT_LOADING_STATE
+        >
     > = [
         {
             onyxMethod: Onyx.METHOD.MERGE,
@@ -490,6 +502,17 @@ function buildOnyxDataForInvoice(
                 [transactionParams.threadCreatedReportAction.reportActionID]: {
                     errors: getMicroSecondOnyxErrorWithTranslationKey('iou.error.genericCreateInvoiceFailureMessage', errorKey),
                 },
+            },
+        });
+    }
+
+    if (chat.isNewReport) {
+        failureData.push({
+            onyxMethod: Onyx.METHOD.MERGE,
+            key: `${ONYXKEYS.COLLECTION.RAM_ONLY_REPORT_LOADING_STATE}${chat.report?.reportID}`,
+            value: {
+                hasOnceLoadedReportActions: true,
+                isLoadingInitialReportActions: false,
             },
         });
     }
@@ -692,8 +715,17 @@ function getSendInvoiceInformation({
 
     // STEP 6: Build Onyx Data
     const onyxData = buildOnyxDataForInvoice({
-        chat: {report: chatReport, createdAction: optimisticCreatedActionForChat, reportPreviewAction, isNewReport: isNewChatReport},
-        iou: {createdAction: optimisticCreatedActionForIOUReport, action: iouAction, report: optimisticInvoiceReport},
+        chat: {
+            report: chatReport,
+            createdAction: optimisticCreatedActionForChat,
+            reportPreviewAction,
+            isNewReport: isNewChatReport,
+        },
+        iou: {
+            createdAction: optimisticCreatedActionForIOUReport,
+            action: iouAction,
+            report: optimisticInvoiceReport,
+        },
         transactionParams: {
             transaction: optimisticTransaction,
             threadReport: optimisticTransactionThread,
@@ -821,7 +853,10 @@ function sendInvoice({
     highlightTransactionOnSearchRouteIfNeeded(isFromGlobalCreate, transactionID, CONST.SEARCH.DATA_TYPES.INVOICE);
 
     if (shouldHandleNavigation) {
-        TransitionTracker.runAfterTransitions({callback: () => removeDraftTransaction(CONST.IOU.OPTIMISTIC_TRANSACTION_ID), waitForUpcomingTransition: true});
+        TransitionTracker.runAfterTransitions({
+            callback: () => removeDraftTransaction(CONST.IOU.OPTIMISTIC_TRANSACTION_ID),
+            waitForUpcomingTransition: true,
+        });
         handleNavigateAfterExpenseCreate({
             activeReportID: invoiceRoom.reportID,
             transactionID,
