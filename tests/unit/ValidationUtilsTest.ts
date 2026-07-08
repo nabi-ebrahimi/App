@@ -2,6 +2,7 @@ import CONST from '@src/CONST';
 import type {Country} from '@src/CONST';
 import {
     containsHtmlTag,
+    containsLatinCharacter,
     getAgeRequirementError,
     getInvalidAddressErrorTranslationPath,
     isInvalidMerchantValue,
@@ -378,6 +379,22 @@ describe('ValidationUtils', () => {
         test('Invalid legal name', () => {
             expect(isValidLegalName(`a hyphenated-name`)).toBe(false);
             expect(isValidLegalName('άλφα')).toBe(false);
+        });
+    });
+
+    describe('containsLatinCharacter', () => {
+        test('returns true when value contains at least one Latin character', () => {
+            expect(containsLatinCharacter('John1')).toBe(true);
+            expect(containsLatinCharacter('123 A')).toBe(true);
+            expect(containsLatinCharacter('José García 123')).toBe(true);
+            expect(containsLatinCharacter('A*&^%$#@! 123')).toBe(true);
+        });
+
+        test('returns false when value has no Latin characters', () => {
+            expect(containsLatinCharacter('12345')).toBe(false);
+            expect(containsLatinCharacter('άλφα')).toBe(false);
+            expect(containsLatinCharacter('测试')).toBe(false);
+            expect(containsLatinCharacter('!@#$')).toBe(false);
         });
     });
 
