@@ -19,29 +19,35 @@ type SavedSearchItemThreeDotMenuProps = {
     renderTooltipContent: () => React.JSX.Element;
     shouldRenderTooltip: boolean;
     isCopied?: boolean;
+    onMenuInteractionCleanup?: () => void;
 };
 
-function SavedSearchItemThreeDotMenu({menuItems, isDisabledItem, hideProductTrainingTooltip, renderTooltipContent, shouldRenderTooltip, isCopied}: SavedSearchItemThreeDotMenuProps) {
+function SavedSearchItemThreeDotMenu({
+    menuItems,
+    isDisabledItem,
+    hideProductTrainingTooltip,
+    renderTooltipContent,
+    shouldRenderTooltip,
+    isCopied,
+    onMenuInteractionCleanup,
+}: SavedSearchItemThreeDotMenuProps) {
     const styles = useThemeStyles();
     const {endPeek} = useSearchSidebarCollapse();
     const threeDotsMenuRef = useRef<ThreeDotsMenuHandle | null>(null);
 
-    const menuItemsWithPeekCleanup = useMemo(
+    const menuItemsWithInteractionCleanup = useMemo(
         () =>
-            menuItems.map((item) => {
-                if (item.shouldCloseModalOnSelect === false) {
-                    return item;
-                }
-
-                return {
-                    ...item,
-                    onSelected: () => {
+            menuItems.map((item) => ({
+                ...item,
+                onSelected: () => {
+                    onMenuInteractionCleanup?.();
+                    if (item.shouldCloseModalOnSelect !== false) {
                         endPeek();
-                        item.onSelected?.();
-                    },
-                };
-            }),
-        [endPeek, menuItems],
+                    }
+                    item.onSelected?.();
+                },
+            })),
+        [endPeek, menuItems, onMenuInteractionCleanup],
     );
 
     useEffect(() => {
@@ -58,7 +64,7 @@ function SavedSearchItemThreeDotMenu({menuItems, isDisabledItem, hideProductTrai
         <View style={[styles.searchTypeMenuAccessoryBox, isDisabledItem && styles.pointerEventsNone]}>
             <ThreeDotsMenu
                 shouldSelfPosition
-                menuItems={menuItemsWithPeekCleanup}
+                menuItems={menuItemsWithInteractionCleanup}
                 renderProductTrainingTooltipContent={renderTooltipContent}
                 shouldShowProductTrainingTooltip={shouldRenderTooltip}
                 anchorAlignment={{

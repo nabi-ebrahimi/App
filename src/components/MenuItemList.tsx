@@ -63,7 +63,7 @@ type MenuItemListProps = {
 function MenuItemList({menuItems = [], shouldUseSingleExecution = false, wrapperStyle = {}, icon = undefined, iconWidth = undefined, iconHeight = undefined}: MenuItemListProps) {
     const popoverAnchor = useRef<View>(null);
     const {isExecuting, singleExecution} = useSingleExecution();
-    const isFocused = useIsFocused();
+    const isScreenFocused = useIsFocused();
 
     /**
      * Handle the secondary interaction for a menu item.
@@ -93,7 +93,7 @@ function MenuItemList({menuItems = [], shouldUseSingleExecution = false, wrapper
 
     return (
         // ref is accessed for MenuItem's ref initialization
-        menuItems.map(({key, ref, ...menuItemProps}) => (
+        menuItems.map(({key, ref, isFocused, ...menuItemProps}) => (
             <OfflineWithFeedback
                 key={key ?? menuItemProps.title}
                 pendingAction={menuItemProps.pendingAction}
@@ -114,7 +114,7 @@ function MenuItemList({menuItems = [], shouldUseSingleExecution = false, wrapper
                     {...menuItemProps}
                     disabled={!!menuItemProps.disabled || isExecuting}
                     onPress={shouldUseSingleExecution ? singleExecution(menuItemProps.onPress) : menuItemProps.onPress}
-                    isFocused={isFocused}
+                    isFocused={isFocused ?? isScreenFocused}
                 />
             </OfflineWithFeedback>
         ))

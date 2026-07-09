@@ -29,7 +29,7 @@ import type {SaveSearchItem} from '@src/types/onyx/SaveSearch';
 
 import {useIsFocused} from '@react-navigation/native';
 import {accountIDSelector} from '@selectors/Session';
-import React from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 
 import useSavedSearchTitles from './hooks/useSavedSearchTitles';
 import SavedSearchItemThreeDotMenu from './SavedSearchItemThreeDotMenu';
@@ -53,6 +53,8 @@ type SavedSearchMenuItemBuilderParams = {
     itemStyle: SavedSearchMenuItem['style'];
     tooltipWrapperStyle: SavedSearchMenuItem['tooltipWrapperStyle'];
     isCopied: boolean;
+    shouldResetHoverState: boolean;
+    onMenuInteractionCleanup: (itemHash: number) => void;
 };
 
 function buildSavedSearchMenuItem({
@@ -68,26 +70,31 @@ function buildSavedSearchMenuItem({
     itemStyle,
     tooltipWrapperStyle,
     isCopied,
+    shouldResetHoverState,
+    onMenuInteractionCleanup,
 }: SavedSearchMenuItemBuilderParams): SavedSearchMenuItem {
     const isItemFocused = Number(key) === hash;
     const baseMenuItem: SavedSearchMenuItem = createBaseSavedSearchMenuItem(item, key, index, title, isItemFocused);
+    const itemHash = Number(key);
 
     return {
         ...baseMenuItem,
         role: CONST.ROLE.TAB,
         sentryLabel: CONST.SENTRY_LABEL.SEARCH.SAVED_SEARCH_MENU_ITEM,
+        isFocused: shouldResetHoverState ? false : undefined,
         onPress: () => {
             setSearchContext(false);
             Navigation.navigate(ROUTES.SEARCH_ROOT.getRoute({query: item?.query ?? '', name: item?.name}));
         },
         rightComponent: (
             <SavedSearchItemThreeDotMenu
-                menuItems={getOverflowMenu(title, Number(key), item.query)}
+                menuItems={getOverflowMenu(title, itemHash, item.query)}
                 isDisabledItem={item.pendingAction === CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE}
                 hideProductTrainingTooltip={index === 0 && shouldShowSavedSearchTooltip ? hideSavedSearchTooltip : undefined}
                 shouldRenderTooltip={index === 0 && shouldShowSavedSearchTooltip}
                 renderTooltipContent={renderSavedSearchTooltip}
                 isCopied={isCopied}
+                onMenuInteractionCleanup={() => onMenuInteractionCleanup(itemHash)}
             />
         ),
         style: itemStyle,
@@ -108,6 +115,7 @@ function SavedSearchList({hash, areAllSectionsExpanded}: SavedSearchListProps) {
     const {shouldUseNarrowLayout} = useResponsiveLayout();
     const {isVisuallyCollapsed} = useSearchSidebarCollapse();
     const isFocused = useIsFocused();
+    const [savedSearchHashPendingHoverReset, setSavedSearchHashPendingHoverReset] = useState<number | null>(null);
 
     const [savedSearches] = useOnyx(ONYXKEYS.SAVED_SEARCHES);
     const [allPolicies] = useOnyx(ONYXKEYS.COLLECTION.POLICY);
@@ -133,6 +141,21 @@ function SavedSearchList({hash, areAllSectionsExpanded}: SavedSearchListProps) {
 
     const taxRates = getAllTaxRates(allPolicies);
     const cardsForSavedSearchDisplay = mergeCardListWithWorkspaceFeeds(workspaceCardList ?? CONST.EMPTY_OBJECT, cardList);
+    const resetSavedSearchHoverState = useCallback((itemHash: number) => {
+        setSavedSearchHashPendingHoverReset(itemHash);
+    }, []);
+
+    useEffect(() => {
+        if (savedSearchHashPendingHoverReset === null) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setSavedSearchHashPendingHoverReset(null);
+        }, 0);
+
+        return () => clearTimeout(timer);
+    }, [savedSearchHashPendingHoverReset]);
 
     const savedSearchTitles = useSavedSearchTitles({
         savedSearches,
@@ -174,6 +197,8 @@ function SavedSearchList({hash, areAllSectionsExpanded}: SavedSearchListProps) {
                       itemStyle,
                       tooltipWrapperStyle,
                       isCopied: copiedHash === Number(key),
+                      shouldResetHoverState: savedSearchHashPendingHoverReset === Number(key),
+                      onMenuInteractionCleanup: resetSavedSearchHoverState,
                   }),
               )
               .sort((a, b) => localeCompare(a.title ?? '', b.title ?? ''))
