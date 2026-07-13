@@ -35,7 +35,7 @@ import type {ViewStyle} from 'react-native';
 import type {OnyxEntry} from 'react-native-onyx';
 
 import {Str} from 'expensify-common';
-import React from 'react';
+import React, {startTransition, useCallback} from 'react';
 import {StyleSheet, View} from 'react-native';
 
 import ReceiptPDFOverlay from './ReceiptPDFOverlay';
@@ -141,6 +141,22 @@ function ReportActionItemImage({
     // While the receipt is regenerating its stored URL is stale, so draw the live route from `routes.coordinates`
     // (via `ConfirmedRoute`) instead of loading the now-404'd image.
     const showMapAsImage = isMapDistanceRequest && (hasErrors || hasPendingDistanceReceiptRegeneration(transaction));
+    const openReceiptPreview = useCallback(() => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                startTransition(() => {
+                    Navigation.navigate(
+                        ROUTES.TRANSACTION_RECEIPT.getRoute(
+                            transactionThreadReport?.reportID ?? contextReport?.reportID ?? reportProp?.reportID ?? getReportIDForExpense(transaction),
+                            transaction?.transactionID,
+                            readonly,
+                            mergeTransactionID,
+                        ),
+                    );
+                });
+            });
+        });
+    }, [contextReport?.reportID, mergeTransactionID, readonly, reportProp?.reportID, transaction, transactionThreadReport?.reportID]);
 
     if (showMapAsImage) {
         return (
@@ -236,16 +252,7 @@ function ReportActionItemImage({
         return (
             <PressableWithoutFocus
                 style={[styles.w100, styles.h100, styles.noOutline as ViewStyle]}
-                onPress={() =>
-                    Navigation.navigate(
-                        ROUTES.TRANSACTION_RECEIPT.getRoute(
-                            transactionThreadReport?.reportID ?? contextReport?.reportID ?? reportProp?.reportID ?? getReportIDForExpense(transaction),
-                            transaction?.transactionID,
-                            readonly,
-                            mergeTransactionID,
-                        ),
-                    )
-                }
+                onPress={openReceiptPreview}
                 accessibilityLabel={translate('accessibilityHints.viewAttachment')}
                 accessibilityRole={CONST.ROLE.BUTTON}
                 sentryLabel={CONST.SENTRY_LABEL.RECEIPT.IMAGE}
