@@ -10,6 +10,7 @@ import useLocalize from '@hooks/useLocalize';
 import useThemeStyles from '@hooks/useThemeStyles';
 
 import {hasHoverSupport} from '@libs/DeviceCapabilities';
+import getPlatform from '@libs/getPlatform';
 import {getReportIDForExpense} from '@libs/MergeTransactionUtils';
 import Navigation from '@libs/Navigation/Navigation';
 import {getThumbnailAndImageURIs} from '@libs/ReceiptUtils';
@@ -35,7 +36,7 @@ import type {ViewStyle} from 'react-native';
 import type {OnyxEntry} from 'react-native-onyx';
 
 import {Str} from 'expensify-common';
-import React, {startTransition, useCallback} from 'react';
+import React, {useCallback} from 'react';
 import {StyleSheet, View} from 'react-native';
 
 import ReceiptPDFOverlay from './ReceiptPDFOverlay';
@@ -142,20 +143,27 @@ function ReportActionItemImage({
     // (via `ConfirmedRoute`) instead of loading the now-404'd image.
     const showMapAsImage = isMapDistanceRequest && (hasErrors || hasPendingDistanceReceiptRegeneration(transaction));
     const openReceiptPreview = useCallback(() => {
-        requestAnimationFrame(() => {
+        const navigateToReceipt = () => {
+            Navigation.navigate(
+                ROUTES.TRANSACTION_RECEIPT.getRoute(
+                    transactionThreadReport?.reportID ?? contextReport?.reportID ?? reportProp?.reportID ?? getReportIDForExpense(transaction),
+                    transaction?.transactionID,
+                    readonly,
+                    mergeTransactionID,
+                ),
+            );
+        };
+
+        if (getPlatform() === CONST.PLATFORM.WEB) {
             requestAnimationFrame(() => {
-                startTransition(() => {
-                    Navigation.navigate(
-                        ROUTES.TRANSACTION_RECEIPT.getRoute(
-                            transactionThreadReport?.reportID ?? contextReport?.reportID ?? reportProp?.reportID ?? getReportIDForExpense(transaction),
-                            transaction?.transactionID,
-                            readonly,
-                            mergeTransactionID,
-                        ),
-                    );
+                requestAnimationFrame(() => {
+                    navigateToReceipt();
                 });
             });
-        });
+            return;
+        }
+
+        navigateToReceipt();
     }, [contextReport?.reportID, mergeTransactionID, readonly, reportProp?.reportID, transaction, transactionThreadReport?.reportID]);
 
     if (showMapAsImage) {
