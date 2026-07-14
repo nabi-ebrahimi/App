@@ -35,7 +35,7 @@ import ONYXKEYS from '@src/ONYXKEYS';
 import ROUTES from '@src/ROUTES';
 import type SCREENS from '@src/SCREENS';
 
-import React, {useEffect, useState} from 'react';
+import React, {startTransition, useEffect, useState} from 'react';
 
 type ShareBankAccountProps = PlatformStackScreenProps<SettingsNavigatorParamList, typeof SCREENS.SETTINGS.WALLET.SHARE_BANK_ACCOUNT>;
 
@@ -72,8 +72,10 @@ function ShareBankAccount({route}: ShareBankAccountProps) {
         } else {
             newSelectedOptions = [...selectedOptions, {...option, isSelected: true}];
         }
-        setIsAlertVisible(false);
-        setSelectedOptions(newSelectedOptions);
+        startTransition(() => {
+            setIsAlertVisible(false);
+            setSelectedOptions(newSelectedOptions);
+        });
     };
     useEffect(() => {
         return () => {

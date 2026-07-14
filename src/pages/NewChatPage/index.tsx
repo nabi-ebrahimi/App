@@ -49,7 +49,7 @@ import {useFocusEffect} from '@react-navigation/native';
 import {hasSeenTourSelector} from '@selectors/Onboarding';
 import passthroughPolicyTagListSelector from '@selectors/PolicyTagList';
 import reject from 'lodash/reject';
-import React, {useEffect, useImperativeHandle, useRef, useState} from 'react';
+import React, {startTransition, useEffect, useImperativeHandle, useRef, useState} from 'react';
 import {Keyboard} from 'react-native';
 
 import type SelectedOption from './types';
@@ -317,7 +317,9 @@ function NewChatPage({ref}: NewChatPageProps) {
      * Removes a selected option from list if already selected. If not already selected add this option to the list.
      */
     const toggleOption = (option: ListItem & Partial<OptionData>) => {
-        const isOptionInList = !!option.isSelected;
+        // Read membership from the selection state (not the item) so rapid toggles stay correct
+        // while a previous transition is still catching up.
+        const isOptionInList = selectedOptions.some((selectedOption) => selectedOption.login === option.login);
 
         let newSelectedOptions: SelectedOption[];
 
@@ -331,9 +333,17 @@ function NewChatPage({ref}: NewChatPageProps) {
         if (!canUseTouchScreen()) {
             selectionListRef.current?.focusTextInput();
         }
-        setSelectedOptions(newSelectedOptions);
 
-        if (personalData?.login && personalData?.accountID) {
+        // The selection update fans out into the whole options pipeline (getValidOptions ->
+        // filterAndOrderOptions -> sections -> useFlattenedSections -> every visible row re-render).
+        // Run it as a transition so the tapped checkbox (which shows optimistic feedback via
+        // ListSelectionButton) can paint first and the heavy re-render doesn't block the frame.
+        startTransition(() => {
+            setSelectedOptions(newSelectedOptions);
+
+            if (!personalData?.login || !personalData?.accountID) {
+                return;
+            }
             const participants: SelectedParticipant[] = [
                 ...newSelectedOptions.map((selectedOption) => ({
                     login: selectedOption.login,
@@ -345,7 +355,7 @@ function NewChatPage({ref}: NewChatPageProps) {
                 },
             ];
             setGroupDraft({participants});
-        }
+        });
     };
 
     /**

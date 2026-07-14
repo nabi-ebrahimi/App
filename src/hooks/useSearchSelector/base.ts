@@ -21,7 +21,7 @@ import type {PermissionStatus} from 'react-native-permissions';
 
 import {isTrackIntentUserSelector} from '@selectors/Onboarding';
 import passthroughPolicyTagListSelector from '@selectors/PolicyTagList';
-import {useState} from 'react';
+import {startTransition, useState} from 'react';
 
 type SearchSelectorContext = (typeof CONST.SEARCH_SELECTOR)[keyof Pick<
     typeof CONST.SEARCH_SELECTOR,
@@ -422,8 +422,10 @@ function useSearchSelectorBase({
 
             if (foundOptionIndex >= 0) {
                 const newSelectedOptions = [...selectedOptions.slice(0, foundOptionIndex), ...selectedOptions.slice(foundOptionIndex + 1)];
-                setSelectedOptions(newSelectedOptions);
-                onSelectionChange?.(newSelectedOptions);
+                startTransition(() => {
+                    setSelectedOptions(newSelectedOptions);
+                    onSelectionChange?.(newSelectedOptions);
+                });
                 return;
             }
         }
@@ -431,8 +433,10 @@ function useSearchSelectorBase({
         const isSelected = selectedOptions.some((selected) => doOptionsMatch(selected, option));
         const newlySelected = isSelected ? selectedOptions.filter((selected) => !doOptionsMatch(selected, option)) : [...selectedOptions, {...option, isSelected: true}];
 
-        setSelectedOptions(newlySelected);
-        onSelectionChange?.(newlySelected);
+        startTransition(() => {
+            setSelectedOptions(newlySelected);
+            onSelectionChange?.(newlySelected);
+        });
     };
 
     const selectedOptionsForDisplay = selectedOptions.filter((option) => {

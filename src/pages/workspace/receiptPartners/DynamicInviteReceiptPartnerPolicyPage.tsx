@@ -32,7 +32,7 @@ import ONYXKEYS from '@src/ONYXKEYS';
 import {DYNAMIC_ROUTES} from '@src/ROUTES';
 import type SCREENS from '@src/SCREENS';
 
-import React, {useState} from 'react';
+import React, {startTransition, useState} from 'react';
 
 type DynamicInviteReceiptPartnerPolicyPageProps = PlatformStackScreenProps<WorkspaceSplitNavigatorParamList, typeof SCREENS.WORKSPACE.DYNAMIC_RECEIPT_PARTNERS_INVITE>;
 
@@ -148,7 +148,9 @@ function DynamicInviteReceiptPartnerPolicyPage({route}: DynamicInviteReceiptPart
             newSelectedOptions = [...selectedOptions, {...option, isSelected: true}];
         }
 
-        setSelectedOptions(newSelectedOptions);
+        startTransition(() => {
+            setSelectedOptions(newSelectedOptions);
+        });
     };
 
     const searchValue = debouncedSearchTerm.trim().toLowerCase();

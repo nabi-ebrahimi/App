@@ -13,7 +13,7 @@ import ONYXKEYS from '@src/ONYXKEYS';
 
 import type {PermissionStatus} from 'react-native-permissions';
 
-import {useState} from 'react';
+import {startTransition, useState} from 'react';
 
 type SearchSelectorSelectionMode = (typeof CONST.SEARCH_SELECTOR)[keyof Pick<typeof CONST.SEARCH_SELECTOR, 'SELECTION_MODE_SINGLE' | 'SELECTION_MODE_MULTI'>];
 
@@ -272,23 +272,25 @@ function usePersonalDetailSearchSelectorBase({
 
         const isSelected = selectedAccountIDs.has(option.accountID.toString());
 
-        if (isSelected) {
-            // If the option is selected, remove it from the selected logins
-            const isInExtraOption = extraOptions.some((extraOption) => extraOption.accountID === option.accountID);
-            if (isInExtraOption) {
-                setExtraOptions((prev) => prev.filter((extraOption) => extraOption.accountID !== option.accountID));
+        startTransition(() => {
+            if (isSelected) {
+                // If the option is selected, remove it from the selected logins
+                const isInExtraOption = extraOptions.some((extraOption) => extraOption.accountID === option.accountID);
+                if (isInExtraOption) {
+                    setExtraOptions((prev) => prev.filter((extraOption) => extraOption.accountID !== option.accountID));
+                }
+                const newSet = new Set([...selectedAccountIDs].filter((accountID) => accountID !== option.accountID.toString()));
+                setSelectedAccountIDs(newSet);
+                onSelectionChange?.(Array.from(newSet));
+            } else {
+                const newSet = new Set(selectedAccountIDs).add(option.accountID.toString());
+                setSelectedAccountIDs(newSet);
+                onSelectionChange?.(Array.from(newSet));
+                if (!existingAccountIDs.has(option.accountID.toString())) {
+                    setExtraOptions((prev) => [...prev, {...option, isSelected: true}]);
+                }
             }
-            const newSet = new Set([...selectedAccountIDs].filter((accountID) => accountID !== option.accountID.toString()));
-            setSelectedAccountIDs(newSet);
-            onSelectionChange?.(Array.from(newSet));
-        } else {
-            const newSet = new Set(selectedAccountIDs).add(option.accountID.toString());
-            setSelectedAccountIDs(newSet);
-            onSelectionChange?.(Array.from(newSet));
-            if (!existingAccountIDs.has(option.accountID.toString())) {
-                setExtraOptions((prev) => [...prev, {...option, isSelected: true}]);
-            }
-        }
+        });
     };
 
     const resetSelection = () => {
