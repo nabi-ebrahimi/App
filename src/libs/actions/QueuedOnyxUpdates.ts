@@ -11,6 +11,7 @@ import Onyx from 'react-native-onyx';
 // In this file we manage a queue of Onyx updates while the SequentialQueue is processing. There are functions to get the updates and clear the queue after saving the updates in Onyx.
 
 let queuedOnyxUpdates: AnyOnyxUpdate[] = [];
+let persistedQueuedOnyxUpdates: AnyOnyxUpdate[] = [];
 let currentAccountID: number | undefined;
 
 // Queued WRITE updates only land in Onyx when flushQueue() runs, so we track a promise that settles with that
@@ -24,6 +25,14 @@ Onyx.connectWithoutView({
     key: ONYXKEYS.SESSION,
     callback: (session) => {
         currentAccountID = session?.accountID;
+    },
+});
+
+// We use `connectWithoutView` because queued updates are managed outside any UI component.
+Onyx.connectWithoutView({
+    key: ONYXKEYS.QUEUED_ONYX_UPDATES,
+    callback: (updates) => {
+        persistedQueuedOnyxUpdates = updates ?? [];
     },
 });
 
@@ -42,7 +51,8 @@ function queueOnyxUpdates<TKey extends OnyxKey>(updates: Array<OnyxUpdate<TKey>>
         flushPromise.catch(() => {});
     }
 
-    return Promise.resolve();
+    // eslint-disable-next-line rulesdir/prefer-actions-set-data
+    return Onyx.set(ONYXKEYS.QUEUED_ONYX_UPDATES, queuedOnyxUpdates);
 }
 
 /**
@@ -54,7 +64,7 @@ function getCurrentFlushPromise(): Promise<void> {
 }
 
 function flushQueue(): Promise<void> {
-    let copyUpdates = [...queuedOnyxUpdates];
+    let copyUpdates = queuedOnyxUpdates.length > 0 ? [...queuedOnyxUpdates] : [...persistedQueuedOnyxUpdates];
     const resolveCurrentFlush = resolveFlushPromise;
     const rejectCurrentFlush = rejectFlushPromise;
 
@@ -88,7 +98,20 @@ function flushQueue(): Promise<void> {
     // WRITE requests gate their lastUpdateID watermark advance on this flush (see OnyxUpdates.apply), so a
     // failure here keeps the watermark back and the next reconnect can refetch and reapply the missed updates.
     return Onyx.update(copyUpdates)
-        .then(() => resolveCurrentFlush?.())
+        .then(() => {
+            if (queuedOnyxUpdates.length > 0) {
+                persistedQueuedOnyxUpdates = queuedOnyxUpdates;
+                // eslint-disable-next-line rulesdir/prefer-actions-set-data
+                return Onyx.set(ONYXKEYS.QUEUED_ONYX_UPDATES, queuedOnyxUpdates);
+            }
+
+            persistedQueuedOnyxUpdates = [];
+            // eslint-disable-next-line rulesdir/prefer-actions-set-data
+            return Onyx.set(ONYXKEYS.QUEUED_ONYX_UPDATES, null);
+        })
+        .then(() => {
+            resolveCurrentFlush?.();
+        })
         .catch((error: unknown) => {
             Log.alert('[OnyxUpdateManagerError] Deferred WRITE Onyx update failed to apply, not advancing lastUpdateID so the client can recover on the next reconnect', {
                 error: error instanceof Error ? error.message : String(error),
@@ -99,7 +122,7 @@ function flushQueue(): Promise<void> {
 }
 
 function isEmpty() {
-    return queuedOnyxUpdates.length === 0;
+    return queuedOnyxUpdates.length === 0 && persistedQueuedOnyxUpdates.length === 0;
 }
 
 export {queueOnyxUpdates, flushQueue, getCurrentFlushPromise, isEmpty};

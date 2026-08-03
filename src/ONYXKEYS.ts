@@ -765,6 +765,9 @@ const ONYXKEYS = {
     /** Onyx updates that should be stored after sequential queue is flushed */
     QUEUE_FLUSHED_DATA: 'queueFlushedData',
 
+    /** WRITE response Onyx updates waiting for the sequential queue to flush */
+    QUEUED_ONYX_UPDATES: 'queuedOnyxUpdates',
+
     /** Set when we are loading bill when downgrade */
     IS_LOADING_BILL_WHEN_DOWNGRADE: 'isLoadingBillWhenDowngrade',
 
@@ -1588,6 +1591,7 @@ type OnyxValuesMapping = {
     [ONYXKEYS.NVP_INBOX_TAB]: ValueOf<typeof CONST.INBOX_TAB>;
     [ONYXKEYS.NVP_BLOCKED_FROM_CONCIERGE]: OnyxTypes.BlockedFromConcierge;
     [ONYXKEYS.QUEUE_FLUSHED_DATA]: AnyOnyxUpdate[];
+    [ONYXKEYS.QUEUED_ONYX_UPDATES]: AnyOnyxUpdate[];
     [ONYXKEYS.TRANSACTIONS_PENDING_3DS_REVIEW]: OnyxTypes.TransactionsPending3DSReview;
     [ONYXKEYS.LOCALLY_PROCESSED_3DS_TRANSACTION_REVIEWS]: OnyxTypes.LocallyProcessed3DSChallengeReviews;
 

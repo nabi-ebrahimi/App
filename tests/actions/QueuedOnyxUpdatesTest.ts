@@ -1,4 +1,4 @@
-import {flushQueue, queueOnyxUpdates} from '@libs/actions/QueuedOnyxUpdates';
+import {flushQueue, isEmpty, queueOnyxUpdates} from '@libs/actions/QueuedOnyxUpdates';
 
 import type {OnyxKey} from '@src/ONYXKEYS';
 import ONYXKEYS from '@src/ONYXKEYS';
@@ -177,6 +177,87 @@ describe('actions/QueuedOnyxUpdates', () => {
                         Onyx.disconnect(connection);
                         expect(reportActions).toEqual(getOnyxUpdateValue(`${ONYXKEYS.COLLECTION.REPORT_ACTIONS}2175919089355165`));
 
+                        resolve();
+                    },
+                });
+            });
+        });
+
+        it('should persist queued updates until they are flushed', async () => {
+            await queueOnyxUpdates(queuedOnyxUpdates);
+            await waitForBatchedUpdates();
+
+            await new Promise<void>((resolve) => {
+                const connection = Onyx.connect({
+                    key: ONYXKEYS.QUEUED_ONYX_UPDATES,
+                    callback: (updates) => {
+                        Onyx.disconnect(connection);
+                        expect(updates).toEqual(queuedOnyxUpdates);
+                        resolve();
+                    },
+                });
+            });
+
+            await Onyx.multiSet({
+                [ONYXKEYS.SESSION]: {
+                    accountID: 1,
+                },
+            });
+            await flushQueue();
+            await waitForBatchedUpdates();
+
+            await new Promise<void>((resolve) => {
+                const connection = Onyx.connect({
+                    key: ONYXKEYS.QUEUED_ONYX_UPDATES,
+                    callback: (updates) => {
+                        Onyx.disconnect(connection);
+                        expect(updates).toBeNull();
+                        resolve();
+                    },
+                });
+            });
+        });
+
+        it('should flush persisted queued updates when the in-memory queue is empty', async () => {
+            await Onyx.multiSet({
+                [ONYXKEYS.SESSION]: {
+                    accountID: 1,
+                },
+                [ONYXKEYS.QUEUED_ONYX_UPDATES]: queuedOnyxUpdates,
+            });
+            await waitForBatchedUpdates();
+
+            expect(isEmpty()).toBe(false);
+
+            await flushQueue();
+            await waitForBatchedUpdates();
+
+            await testOnyxKeyValue(ONYXKEYS.NVP_TRY_FOCUS_MODE);
+            await testOnyxKeyValue(ONYXKEYS.PREFERRED_THEME);
+            await testOnyxKeyValue(ONYXKEYS.NVP_PREFERRED_LOCALE);
+            await testOnyxKeyValue(ONYXKEYS.SESSION);
+            await testOnyxKeyValue(ONYXKEYS.IS_LOADING_APP);
+            await testOnyxKeyValue(ONYXKEYS.CREDENTIALS);
+            await testOnyxKeyValue(ONYXKEYS.RAM_ONLY_IS_SIDEBAR_LOADED);
+
+            await new Promise<void>((resolve) => {
+                const connection = Onyx.connect({
+                    key: `${ONYXKEYS.COLLECTION.REPORT}2175919089355165`,
+                    callback: (report) => {
+                        Onyx.disconnect(connection);
+                        expect(report).toEqual(getOnyxUpdateValue(`${ONYXKEYS.COLLECTION.REPORT}2175919089355165`));
+
+                        resolve();
+                    },
+                });
+            });
+
+            await new Promise<void>((resolve) => {
+                const connection = Onyx.connect({
+                    key: ONYXKEYS.QUEUED_ONYX_UPDATES,
+                    callback: (updates) => {
+                        Onyx.disconnect(connection);
+                        expect(updates).toBeNull();
                         resolve();
                     },
                 });
