@@ -200,12 +200,17 @@ function BaseSelectionListWithSectionsImpl({
 
     const syncedSearchValue = searchValueForFocusSync ?? textInputOptions?.value;
 
+    // A pointer selection stores a focusedIndex >= 0 without a visible highlight (that also requires isKeyboardNavigating),
+    // so plain Enter would toggle an invisible row instead of reaching the confirm button. Only let the list handle Enter
+    // when there's a real keyboard target (keyboard navigation or an active search), or when there's no confirm button to defer to.
+    const shouldSelectFocusedItemOnEnter = isKeyboardNavigating || !!syncedSearchValue?.trim() || !confirmButtonOptions?.onConfirm || shouldStopPropagation;
+
     useSelectionListShortcuts({
         selectFocusedItem,
         getFocusedOption: getFocusedItem,
         confirmButtonOptions,
         isActive: isScreenFocused,
-        focusedIndex,
+        focusedIndex: shouldSelectFocusedItemOnEnter ? focusedIndex : -1,
         disableKeyboardShortcuts,
         shouldStopPropagation,
         shouldBubble: itemsCount > 0 && !getFocusedItem(),
@@ -244,7 +249,7 @@ function BaseSelectionListWithSectionsImpl({
                 onKeyPress={textInputKeyPress}
                 accessibilityLabel={textInputOptions?.label}
                 options={textInputOptions}
-                onSubmit={selectFocusedItem}
+                onSubmit={shouldSelectFocusedItemOnEnter ? selectFocusedItem : undefined}
                 dataLength={itemsCount}
                 isLoading={isLoadingNewOptions}
                 onFocusChange={(v: boolean) => (isTextInputFocusedRef.current = v)}

@@ -59,12 +59,15 @@ function useSearchFocusSync<TItem extends ListItem, TData = TItem>({
         const searchChanged = prevSearchValue !== searchValue;
         const selectedOptionsChanged = selectedOptionsCount !== prevSelectedOptionsCount;
         const selectionChangedByClicking = !searchChanged && selectedOptionsChanged && shouldUpdateFocusedIndex;
+        // Results of an active search can arrive asynchronously without searchValue changing (e.g. a user
+        // fetched from the server), so treat a result-count change as a search update to keep a row focused.
+        const searchResultsChanged = !!searchValue && data.length > 0 && prevItemsLength !== data.length;
 
         // Do not change focus if:
-        // 1. Input value is the same or
+        // 1. Input value is the same, selection did not change, and no async search results arrived, or
         // 2. Data length is 0 or
         // 3. Selection changed via user interaction (not filtering), so focus is handled externally
-        if ((!searchChanged && !selectedOptionsChanged) || data.length === 0 || selectionChangedByClicking) {
+        if ((!searchChanged && !selectedOptionsChanged && !searchResultsChanged) || data.length === 0 || selectionChangedByClicking) {
             return;
         }
 
