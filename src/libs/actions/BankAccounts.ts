@@ -40,7 +40,7 @@ import ROUTES, {DYNAMIC_ROUTES} from '@src/ROUTES';
 import type {Route} from '@src/ROUTES';
 import type {InternationalBankAccountForm, PersonalBankAccountForm} from '@src/types/form';
 import type {ACHContractStepProps, BeneficialOwnersStepProps, CompanyStepProps, ReimbursementAccountForm, RequestorStepProps} from '@src/types/form/ReimbursementAccountForm';
-import type {BankAccountList, LastPaymentMethod, LastPaymentMethodType, PersonalBankAccount} from '@src/types/onyx';
+import type {BankAccountList, LastPaymentMethod, LastPaymentMethodType, PersonalBankAccount, WalletBankAccountResume} from '@src/types/onyx';
 import type {BankAccountAdditionalData} from '@src/types/onyx/BankAccount';
 import type PlaidBankAccount from '@src/types/onyx/PlaidBankAccount';
 import type {BankAccountStep, ReimbursementAccountStep, ReimbursementAccountSubStep} from '@src/types/onyx/ReimbursementAccount';
@@ -67,10 +67,27 @@ export {openPlaidBankAccountSelector, openPlaidBankLogin} from './Plaid';
 export {openOnfidoFlow, answerQuestionsForWallet, verifyIdentity, acceptWalletTerms} from './Wallet';
 
 let bankAccountList: OnyxEntry<BankAccountList>;
+let walletBankAccountResume: OnyxEntry<WalletBankAccountResume>;
+let personalBankAccountDraft: OnyxEntry<PersonalBankAccountForm>;
+let internationalBankAccountDraft: OnyxEntry<InternationalBankAccountForm>;
 
 Onyx.connectWithoutView({
     key: ONYXKEYS.BANK_ACCOUNT_LIST,
     callback: (value) => (bankAccountList = value),
+});
+
+// These action-level reads are required to decide whether Wallet navigation should resume local setup state before a screen mounts.
+Onyx.connectWithoutView({
+    key: ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME,
+    callback: (value) => (walletBankAccountResume = value),
+});
+Onyx.connectWithoutView({
+    key: ONYXKEYS.FORMS.PERSONAL_BANK_ACCOUNT_FORM_DRAFT,
+    callback: (value) => (personalBankAccountDraft = value),
+});
+Onyx.connectWithoutView({
+    key: ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT,
+    callback: (value) => (internationalBankAccountDraft = value),
 });
 
 type AccountFormValues = typeof ONYXKEYS.FORMS.PERSONAL_BANK_ACCOUNT_FORM | typeof ONYXKEYS.FORMS.REIMBURSEMENT_ACCOUNT_FORM;
@@ -93,6 +110,9 @@ type OpenPersonalBankAccountSetupViewProps = {
 
     /** Route to navigate to after adding a bank account when the KYC flow should continue */
     onSuccessFallbackRoute?: Route;
+
+    /** Preserve a compatible unfinished setup previously started from Wallet */
+    shouldPreserveExistingSetup?: boolean;
 };
 
 type VBBAOnyxKey =
@@ -123,10 +143,8 @@ function setPlaidEvent(eventName: string | null) {
 }
 
 /**
- * Opens the personal bank account setup flow and resets PERSONAL_BANK_ACCOUNT state before navigation.
- * Any existing PERSONAL_BANK_ACCOUNT data is fully replaced with only the fields passed to this function,
- * so callers that pass no parameters (e.g. Wallet > Add bank account) clear all existing data including
- * a leftover onSuccessFallbackRoute from a previous flow.
+ * Opens the personal bank-account flow. Entries start fresh by default; Wallet may explicitly resume a
+ * compatible setup while replacing any routing context left by the previous entry.
  */
 function openPersonalBankAccountSetupView({
     exitReportID,
@@ -135,8 +153,12 @@ function openPersonalBankAccountSetupView({
     shouldSetUpUSBankAccount = false,
     isUserValidated = true,
     onSuccessFallbackRoute,
+    shouldPreserveExistingSetup = false,
 }: OpenPersonalBankAccountSetupViewProps) {
-    clearInternationalBankAccount().then(() => {
+    const shouldResume = shouldPreserveExistingSetup && walletBankAccountResume?.origin === 'wallet' && walletBankAccountResume.purpose === 'personal';
+    const initializeSetup = shouldResume ? Promise.resolve() : clearInternationalBankAccount();
+
+    initializeSetup.then(() => {
         const personalBankAccountState: Partial<PersonalBankAccount> = {};
 
         if (exitReportID) {
@@ -152,9 +174,29 @@ function openPersonalBankAccountSetupView({
             personalBankAccountState.onSuccessFallbackRoute = onSuccessFallbackRoute;
         }
 
-        // Use set instead of merge so each new flow starts with only the fields we explicitly pass, not leftover fields from a previous flow.
-        Onyx.set(ONYXKEYS.PERSONAL_BANK_ACCOUNT, Object.keys(personalBankAccountState).length > 0 ? personalBankAccountState : null);
-        Onyx.set(ONYXKEYS.FORMS.PERSONAL_BANK_ACCOUNT_FORM_DRAFT, null);
+        if (shouldResume) {
+            // Replace routing context from the previous entry without clearing compatible setup progress.
+            Onyx.merge(ONYXKEYS.PERSONAL_BANK_ACCOUNT, {
+                exitReportID: exitReportID ?? null,
+                policyID: policyID ?? null,
+                source: source ?? null,
+                onSuccessFallbackRoute: onSuccessFallbackRoute ?? null,
+            });
+        } else {
+            // Use set so a new flow cannot inherit routing or setup state from an incompatible entry.
+            Onyx.set(ONYXKEYS.PERSONAL_BANK_ACCOUNT, Object.keys(personalBankAccountState).length > 0 ? personalBankAccountState : null);
+            Onyx.set(ONYXKEYS.FORMS.PERSONAL_BANK_ACCOUNT_FORM_DRAFT, null);
+            Onyx.set(ONYXKEYS.FORMS.HOME_ADDRESS_FORM_DRAFT, null);
+            Onyx.set(
+                ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME,
+                shouldPreserveExistingSetup
+                    ? {
+                          origin: 'wallet',
+                          purpose: 'personal',
+                      }
+                    : null,
+            );
+        }
 
         if (!isUserValidated) {
             // This flow always adds a personal deposit account, so the purpose screen is skipped once the account is validated.
@@ -162,8 +204,15 @@ function openPersonalBankAccountSetupView({
             return;
         }
         if (shouldSetUpUSBankAccount) {
-            Navigation.navigate(ROUTES.SETTINGS_ADD_US_BANK_ACCOUNT.getRoute());
+            Navigation.navigate(ROUTES.SETTINGS_ADD_US_BANK_ACCOUNT.getRoute(shouldResume ? walletBankAccountResume?.currentPage : undefined));
             return;
+        }
+        if (shouldResume && (walletBankAccountResume?.setupType || personalBankAccountDraft?.setupType)) {
+            Navigation.navigate(ROUTES.SETTINGS_ADD_US_BANK_ACCOUNT.getRoute(walletBankAccountResume?.currentPage));
+            return;
+        }
+        if (shouldResume && internationalBankAccountDraft?.bankCountry) {
+            fetchCorpayFields(internationalBankAccountDraft.bankCountry, internationalBankAccountDraft.bankCurrency, false, false, true);
         }
         Navigation.navigate(ROUTES.SETTINGS_ADD_BANK_ACCOUNT.getRoute(Navigation.getActiveRoute()));
     });
@@ -178,11 +227,17 @@ function openPersonalBankAccountSetupWithPlaid(exitReportID?: string) {
             Onyx.merge(ONYXKEYS.PERSONAL_BANK_ACCOUNT, {exitReportID});
         }
         Onyx.merge(ONYXKEYS.FORMS.PERSONAL_BANK_ACCOUNT_FORM_DRAFT, {setupType: CONST.BANK_ACCOUNT.SETUP_TYPE.PLAID});
+        if (walletBankAccountResume?.purpose === 'personal') {
+            Onyx.merge(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME, {setupType: CONST.BANK_ACCOUNT.SETUP_TYPE.PLAID});
+        }
     });
 }
 
 function clearPersonalBankAccountSetupType() {
     Onyx.merge(ONYXKEYS.FORMS.PERSONAL_BANK_ACCOUNT_FORM_DRAFT, {setupType: null});
+    if (walletBankAccountResume?.purpose === 'personal') {
+        Onyx.merge(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME, {setupType: null});
+    }
 }
 
 function clearPersonalBankAccountErrors() {
@@ -331,7 +386,8 @@ function clearPersonalBankAccount(preservedData?: Partial<PersonalBankAccount>) 
     clearPlaid();
     Onyx.set(ONYXKEYS.PERSONAL_BANK_ACCOUNT, preservedData ?? null);
     Onyx.set(ONYXKEYS.FORMS.PERSONAL_BANK_ACCOUNT_FORM_DRAFT, null);
-    clearPersonalBankAccountSetupType();
+    Onyx.set(ONYXKEYS.FORMS.HOME_ADDRESS_FORM_DRAFT, null);
+    Onyx.set(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME, null);
 }
 
 /** Resets state and seeds drafts via Onyx.set to avoid set/merge races. */
@@ -349,6 +405,25 @@ function clearOnfidoToken() {
 
 function updateAddPersonalBankAccountDraft(bankData: Partial<PersonalBankAccountForm>) {
     Onyx.merge(ONYXKEYS.FORMS.PERSONAL_BANK_ACCOUNT_FORM_DRAFT, bankData);
+    if (walletBankAccountResume?.purpose === 'personal' && bankData.setupType) {
+        Onyx.merge(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME, {setupType: bankData.setupType});
+    }
+}
+
+function updateWalletBankAccountCurrentPage(currentPage: string) {
+    Onyx.merge(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME, {currentPage});
+}
+
+function clearWalletBankAccountResume() {
+    Onyx.set(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME, null);
+}
+
+function setWalletBankAccountResume(resumeMetadata: WalletBankAccountResume) {
+    Onyx.set(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME, resumeMetadata);
+}
+
+function updateWalletBankAccountResume(resumeMetadata: Partial<WalletBankAccountResume>) {
+    Onyx.merge(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME, resumeMetadata);
 }
 
 /**
@@ -1477,7 +1552,10 @@ function validatePlaidSelection(values: FormOnyxValues<AccountFormValues>, trans
     return errorFields;
 }
 
-function fetchCorpayFields(bankCountry: string, bankCurrency?: string, isWithdrawal?: boolean, isBusinessBankAccount?: boolean) {
+function fetchCorpayFields(bankCountry: string, bankCurrency?: string, isWithdrawal?: boolean, isBusinessBankAccount?: boolean, shouldPreserveDraft = false) {
+    if (walletBankAccountResume?.purpose === 'personal') {
+        Onyx.set(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME, {origin: 'wallet', purpose: 'personal', country: bankCountry, currency: bankCurrency});
+    }
     API.write(
         WRITE_COMMANDS.GET_CORPAY_BANK_ACCOUNT_FIELDS,
         {countryISO: bankCountry, currency: bankCurrency, isWithdrawal, isBusinessBankAccount},
@@ -1491,7 +1569,7 @@ function fetchCorpayFields(bankCountry: string, bankCurrency?: string, isWithdra
                     },
                 },
                 {
-                    onyxMethod: Onyx.METHOD.SET,
+                    onyxMethod: shouldPreserveDraft ? Onyx.METHOD.MERGE : Onyx.METHOD.SET,
                     key: ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT,
                     value: {
                         bankCountry,
@@ -1875,6 +1953,10 @@ export {
     addPersonalBankAccount,
     clearOnfidoToken,
     clearPersonalBankAccount,
+    clearInternationalBankAccount,
+    clearWalletBankAccountResume,
+    setWalletBankAccountResume,
+    updateWalletBankAccountResume,
     setPersonalBankAccountContinueKYCOnSuccess,
     resetPersonalBankAccountForUpdate,
     setPlaidEvent,
@@ -1895,6 +1977,7 @@ export {
     setReimbursementAccountLoading,
     openPersonalBankAccountSetupWithPlaid,
     updateAddPersonalBankAccountDraft,
+    updateWalletBankAccountCurrentPage,
     clearPersonalBankAccountSetupType,
     validatePlaidSelection,
     fetchCorpayFields,

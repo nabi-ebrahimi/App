@@ -8,6 +8,7 @@ import useThemeStyles from '@hooks/useThemeStyles';
 
 import CountrySelectionList from '@pages/settings/Wallet/CountrySelectionList';
 
+import {clearInternationalBankAccount, clearPersonalBankAccount, setWalletBankAccountResume} from '@userActions/BankAccounts';
 import {clearReimbursementAccount, clearReimbursementAccountDraft, navigateToBankAccountRoute, updateReimbursementAccountDraft} from '@userActions/ReimbursementAccount';
 
 import type {Country} from '@src/CONST';
@@ -19,6 +20,9 @@ import React, {useMemo, useState} from 'react';
 
 function CountrySelection() {
     const [country] = useOnyx(ONYXKEYS.COUNTRY);
+    const [reimbursementAccount] = useOnyx(ONYXKEYS.REIMBURSEMENT_ACCOUNT);
+    const [reimbursementAccountDraft] = useOnyx(ONYXKEYS.FORMS.REIMBURSEMENT_ACCOUNT_FORM_DRAFT);
+    const [walletBankAccountResume] = useOnyx(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME);
     const personalPolicy = usePersonalPolicy();
     const {translate} = useLocalize();
     const styles = useThemeStyles();
@@ -69,10 +73,22 @@ function CountrySelection() {
             return;
         }
         startWithLoading(() => {
-            clearReimbursementAccount();
-            clearReimbursementAccountDraft();
-            updateReimbursementAccountDraft({country: selectedCountry as Country, currency: CONST.BBA_COUNTRY_CURRENCY_MAP[selectedCountry]});
-            navigateToBankAccountRoute({backTo: ROUTES.SETTINGS_BANK_ACCOUNT_PURPOSE});
+            const selectedCurrency = CONST.BBA_COUNTRY_CURRENCY_MAP[selectedCountry];
+            const shouldResume =
+                walletBankAccountResume?.purpose === 'business' && walletBankAccountResume.country === selectedCountry && walletBankAccountResume.currency === selectedCurrency;
+
+            if (!shouldResume) {
+                clearPersonalBankAccount();
+                clearInternationalBankAccount();
+                clearReimbursementAccount();
+                clearReimbursementAccountDraft();
+                updateReimbursementAccountDraft({country: selectedCountry as Country, currency: selectedCurrency});
+            }
+
+            const policyID = shouldResume ? (walletBankAccountResume.policyID ?? reimbursementAccount?.achData?.policyID) : undefined;
+            const bankAccountID = shouldResume ? (walletBankAccountResume.bankAccountID ?? reimbursementAccount?.achData?.bankAccountID) : undefined;
+            setWalletBankAccountResume({origin: 'wallet', purpose: 'business', country: selectedCountry, currency: selectedCurrency, policyID, bankAccountID});
+            navigateToBankAccountRoute({policyID, bankAccountID, backTo: ROUTES.SETTINGS_BANK_ACCOUNT_PURPOSE});
         });
     };
 

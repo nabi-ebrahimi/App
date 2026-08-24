@@ -35,6 +35,7 @@ import withPolicy from '@pages/workspace/withPolicy';
 
 import {
     clearOnfidoToken,
+    clearWalletBankAccountResume,
     goToWithdrawalAccountSetupStep,
     hideBankAccountErrors,
     openReimbursementAccountPage,
@@ -42,6 +43,7 @@ import {
     setPlaidEvent,
     setReimbursementAccountLoading,
     updateReimbursementAccountDraft,
+    updateWalletBankAccountResume,
 } from '@userActions/BankAccounts';
 import {setDraftValues} from '@userActions/FormActions';
 import {getPaymentMethods} from '@userActions/PaymentMethods';
@@ -104,6 +106,7 @@ function ReimbursementAccountPage({route, policy, isLoadingPolicy}: Reimbursemen
     const topmostFullScreenRoute = useRootNavigationState((state) => state?.routes.findLast((lastRoute) => isFullScreenName(lastRoute.name)));
     const [isChangingToNewBankAccount] = useOnyx(ONYXKEYS.IS_CHANGING_TO_NEW_BANK_ACCOUNT);
     const [reimbursementAccountBackup] = useOnyx(ONYXKEYS.REIMBURSEMENT_ACCOUNT_BACKUP);
+    const [walletBankAccountResume] = useOnyx(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME);
 
     const {isBetaEnabled} = usePermissions();
     const policyName = policy?.name ?? '';
@@ -121,6 +124,7 @@ function ReimbursementAccountPage({route, policy, isLoadingPolicy}: Reimbursemen
     const hasClearedStalePlaidErrorsRef = useRef(false);
     const isChangingBankAccountRef = useRef(isChangingBankAccount);
     const hasShownConnectedBankAccountRef = useRef(false);
+    const shouldPreserveWalletSetupRef = useRef(walletBankAccountResume?.purpose === 'business');
     const prevReimbursementAccount = usePrevious(reimbursementAccount);
     const prevIsOffline = usePrevious(isOffline);
     const achData = reimbursementAccount?.achData;
@@ -182,9 +186,44 @@ function ReimbursementAccountPage({route, policy, isLoadingPolicy}: Reimbursemen
     const isConnectedVerifiedBankAccountData = isNonUSDSetup ? achData?.state === CONST.BANK_ACCOUNT.STATE.OPEN : achData?.currentStep === CONST.BANK_ACCOUNT.STEP.ENABLE;
 
     useEffect(() => {
+        if (walletBankAccountResume?.purpose === 'business') {
+            shouldPreserveWalletSetupRef.current = true;
+        }
+    }, [walletBankAccountResume?.purpose]);
+
+    useEffect(() => {
+        if (walletBankAccountResume?.purpose !== 'business') {
+            return;
+        }
+        const policyID = policyIDParam ?? achData?.policyID;
+        const bankAccountID = bankAccountIDParam ? Number(bankAccountIDParam) : achData?.bankAccountID;
+        if (policyID === walletBankAccountResume.policyID && bankAccountID === walletBankAccountResume.bankAccountID) {
+            return;
+        }
+        updateWalletBankAccountResume({policyID, bankAccountID});
+    }, [
+        achData?.bankAccountID,
+        achData?.policyID,
+        bankAccountIDParam,
+        policyIDParam,
+        walletBankAccountResume?.bankAccountID,
+        walletBankAccountResume?.policyID,
+        walletBankAccountResume?.purpose,
+    ]);
+
+    useEffect(() => {
+        if (walletBankAccountResume?.purpose !== 'business' || !isConnectedVerifiedBankAccountData) {
+            return;
+        }
+        shouldPreserveWalletSetupRef.current = false;
+        clearReimbursementAccountDraft();
+        clearWalletBankAccountResume();
+    }, [isConnectedVerifiedBankAccountData, walletBankAccountResume?.purpose]);
+
+    useEffect(() => {
         const isChangingBankAccountInstance = isChangingBankAccountRef.current;
         return () => {
-            if (!isChangingBankAccountInstance) {
+            if (!isChangingBankAccountInstance && !shouldPreserveWalletSetupRef.current) {
                 clearReimbursementAccountDraft();
                 clearReimbursementAccount();
             }
@@ -252,7 +291,7 @@ function ReimbursementAccountPage({route, policy, isLoadingPolicy}: Reimbursemen
         }
         if (bankAccountIDParam) {
             // we don't need to send the stepToOpen and subStep when opening by bankAccountID - the step is returned from the backend
-            openReimbursementAccountPage({bankAccountID: Number(bankAccountIDParam)});
+            openReimbursementAccountPage({bankAccountID: Number(bankAccountIDParam), shouldPreserveDraft: walletBankAccountResume?.purpose === 'business'});
             return;
         }
         // We can specify a step to navigate to by using route params when the component mounts.
@@ -269,7 +308,13 @@ function ReimbursementAccountPage({route, policy, isLoadingPolicy}: Reimbursemen
 
         // When preserving the current step (e.g., coming back online), also preserve the draft
         // to prevent losing user selections made while offline
-        openReimbursementAccountPage({stepToOpen, subStep, localCurrentStep, policyID: policyIDParam, shouldPreserveDraft: preserveCurrentStep});
+        openReimbursementAccountPage({
+            stepToOpen,
+            subStep,
+            localCurrentStep,
+            policyID: policyIDParam,
+            shouldPreserveDraft: preserveCurrentStep || walletBankAccountResume?.purpose === 'business',
+        });
     }
 
     // When the workspace's bank account is switched, the switch request and the refetch that reloads
@@ -335,7 +380,7 @@ function ReimbursementAccountPage({route, policy, isLoadingPolicy}: Reimbursemen
             return;
         }
 
-        if (policyIDParam) {
+        if (policyIDParam && walletBankAccountResume?.purpose !== 'business') {
             setReimbursementAccountLoading(true);
             clearReimbursementAccountDraft();
         }

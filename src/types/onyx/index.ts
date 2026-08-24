@@ -203,6 +203,7 @@ import type ValidateUserAndGetAccessiblePolicies from './ValidateUserAndGetAcces
 import type VerifyValidateCodeAction from './VerifyValidateCodeAction';
 import type WalletAdditionalDetails from './WalletAdditionalDetails';
 import type {WalletAdditionalQuestionDetails} from './WalletAdditionalDetails';
+import type WalletBankAccountResume from './WalletBankAccountResume';
 import type WalletOnfido from './WalletOnfido';
 import type WalletStatement from './WalletStatement';
 import type WalletTerms from './WalletTerms';
@@ -353,6 +354,7 @@ export type {
     UserWallet,
     ViolationName,
     WalletAdditionalDetails,
+    WalletBankAccountResume,
     WalletAdditionalQuestionDetails,
     WalletOnfido,
     ExpensifyCardStatement,

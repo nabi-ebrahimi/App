@@ -437,6 +437,9 @@ const ONYXKEYS = {
     /** Stores information about the active personal bank account being set up */
     PERSONAL_BANK_ACCOUNT: 'personalBankAccount',
 
+    /** Minimal metadata used to resume an unfinished bank-account setup started from Wallet */
+    WALLET_BANK_ACCOUNT_RESUME: 'walletBankAccountResume',
+
     /** Stores information about the active reimbursement account being set up */
     REIMBURSEMENT_ACCOUNT: 'reimbursementAccount',
 
@@ -1661,6 +1664,7 @@ type OnyxValuesMapping = {
     [ONYXKEYS.EXPENSIFY_CARD_STATEMENT]: OnyxTypes.ExpensifyCardStatement;
     [ONYXKEYS.PURCHASE_LIST]: OnyxTypes.PurchaseList;
     [ONYXKEYS.PERSONAL_BANK_ACCOUNT]: OnyxTypes.PersonalBankAccount;
+    [ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME]: OnyxTypes.WalletBankAccountResume;
     [ONYXKEYS.SHARE_BANK_ACCOUNT]: OnyxTypes.ShareBankAccount;
     [ONYXKEYS.UNSHARE_BANK_ACCOUNT]: OnyxTypes.UnshareBankAccount;
     [ONYXKEYS.REIMBURSEMENT_ACCOUNT]: OnyxTypes.ReimbursementAccount;

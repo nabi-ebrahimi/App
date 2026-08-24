@@ -270,7 +270,7 @@ function WalletPage() {
             Navigation.navigate(ROUTES.SETTINGS_BANK_ACCOUNT_PURPOSE);
             return;
         }
-        openPersonalBankAccountSetupView({});
+        openPersonalBankAccountSetupView({shouldPreserveExistingSetup: true});
     };
 
     const makeDefaultPaymentMethod = useCallback(() => {

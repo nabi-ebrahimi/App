@@ -58,7 +58,7 @@ function ChooseTransferAccountPage() {
             Navigation.navigate(ROUTES.SETTINGS_ADD_DEBIT_CARD);
             return;
         }
-        openPersonalBankAccountSetupView({});
+        openPersonalBankAccountSetupView({shouldPreserveExistingSetup: true});
     };
 
     const [bankAccountsList] = useOnyx(ONYXKEYS.BANK_ACCOUNT_LIST);

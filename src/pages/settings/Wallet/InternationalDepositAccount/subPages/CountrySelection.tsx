@@ -5,7 +5,7 @@ import Navigation from '@libs/Navigation/Navigation';
 import CountrySelectionList from '@pages/settings/Wallet/CountrySelectionList';
 import type CustomSubPageProps from '@pages/settings/Wallet/InternationalDepositAccount/types';
 
-import {fetchCorpayFields} from '@userActions/BankAccounts';
+import {clearInternationalBankAccount, fetchCorpayFields, setWalletBankAccountResume} from '@userActions/BankAccounts';
 
 import CONST, {COUNTRIES_US_BANK_FLOW} from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
@@ -17,15 +17,21 @@ import React, {useCallback, useMemo, useState} from 'react';
 
 function CountrySelection({isEditing, onNext, onMove, formValues, fieldsMap}: CustomSubPageProps) {
     const [isUserValidated] = useOnyx(ONYXKEYS.ACCOUNT, {selector: isUserValidatedSelector});
+    const [walletBankAccountResume] = useOnyx(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME);
     const [selectedCountry, setSelectedCountry] = useState(formValues.bankCountry || '');
 
     const onCountrySelected = useCallback(() => {
         if (COUNTRIES_US_BANK_FLOW.includes(selectedCountry)) {
-            if (isUserValidated) {
-                Navigation.navigate(ROUTES.SETTINGS_ADD_US_BANK_ACCOUNT_ENTRY_POINT);
-            } else {
-                Navigation.navigate(ROUTES.SETTINGS_ADD_BANK_ACCOUNT_SELECT_COUNTRY_VERIFY_ACCOUNT);
+            if (walletBankAccountResume?.purpose === 'personal') {
+                setWalletBankAccountResume({origin: 'wallet', purpose: 'personal', country: selectedCountry});
             }
+            clearInternationalBankAccount().then(() => {
+                if (isUserValidated) {
+                    Navigation.navigate(ROUTES.SETTINGS_ADD_US_BANK_ACCOUNT_ENTRY_POINT);
+                } else {
+                    Navigation.navigate(ROUTES.SETTINGS_ADD_BANK_ACCOUNT_SELECT_COUNTRY_VERIFY_ACCOUNT);
+                }
+            });
             return;
         }
         if (!isEmptyObject(fieldsMap) && formValues.bankCountry === selectedCountry) {
@@ -34,7 +40,7 @@ function CountrySelection({isEditing, onNext, onMove, formValues, fieldsMap}: Cu
         }
         fetchCorpayFields(selectedCountry);
         onMove(CONST.CORPAY_FIELDS.INDEXES.MAPPING.BANK_ACCOUNT_DETAILS, false);
-    }, [fieldsMap, formValues.bankCountry, onMove, isUserValidated, onNext, selectedCountry]);
+    }, [fieldsMap, formValues.bankCountry, onMove, isUserValidated, onNext, selectedCountry, walletBankAccountResume?.purpose]);
 
     const countries = useMemo(() => Object.keys(CONST.ALL_COUNTRIES).filter((countryISO) => !CONST.CORPAY_FIELDS.EXCLUDED_COUNTRIES.includes(countryISO)), []);
 

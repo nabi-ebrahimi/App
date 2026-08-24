@@ -4,11 +4,15 @@ import Text from '@components/Text';
 
 import {useMemoizedLazyIllustrations} from '@hooks/useLazyAsset';
 import useLocalize from '@hooks/useLocalize';
+import useOnyx from '@hooks/useOnyx';
 import useThemeStyles from '@hooks/useThemeStyles';
 
 import variables from '@styles/variables';
 
 import {openPersonalBankAccountSetupView} from '@userActions/BankAccounts';
+import {clearReimbursementAccount, clearReimbursementAccountDraft} from '@userActions/ReimbursementAccount';
+
+import ONYXKEYS from '@src/ONYXKEYS';
 
 import React from 'react';
 import {View} from 'react-native';
@@ -22,6 +26,15 @@ function BankAccountPurpose({showCountrySelectionStep}: BankAccountPurposeProps)
     const styles = useThemeStyles();
     const {translate} = useLocalize();
     const illustrations = useMemoizedLazyIllustrations(['BankCoin', 'WalletAlt2']);
+    const [walletBankAccountResume] = useOnyx(ONYXKEYS.WALLET_BANK_ACCOUNT_RESUME);
+
+    const openPersonalAccountSetup = () => {
+        if (walletBankAccountResume?.purpose === 'business') {
+            clearReimbursementAccountDraft();
+            clearReimbursementAccount();
+        }
+        openPersonalBankAccountSetupView({shouldPreserveExistingSetup: true});
+    };
 
     return (
         <FullPageOfflineBlockingView>
@@ -32,7 +45,7 @@ function BankAccountPurpose({showCountrySelectionStep}: BankAccountPurposeProps)
                     title={translate('bankAccount.getReimbursed')}
                     description={translate('bankAccount.getReimbursedDescription')}
                     shouldShowRightIcon
-                    onPress={() => openPersonalBankAccountSetupView({})}
+                    onPress={openPersonalAccountSetup}
                     displayInDefaultIconColor
                     iconStyles={[styles.ml3, styles.mr2]}
                     iconWidth={variables.menuIconSize}
