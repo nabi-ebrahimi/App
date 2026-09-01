@@ -4,6 +4,7 @@ import {getTransactionsByReportID, getViolationsFromSearchData, isTodoSearch} fr
 
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
+import type {SearchResults} from '@src/types/onyx';
 import type {SearchResultsInfo} from '@src/types/onyx/SearchResults';
 
 import React, {useState} from 'react';
@@ -16,8 +17,10 @@ import {useOnyx} from 'react-native-onyx';
 
 import type {SearchResultsActionsValue, SearchResultsContextValue} from './types';
 
+import useSearchExportActionsHydration from './hooks/useSearchExportActionsHydration';
 import {useSearchQueryContext} from './SearchContext';
 import {EMPTY_TRANSACTIONS_BY_REPORT_ID, SearchResultsActionsContext, SearchResultsContext} from './SearchContextDefinitions';
+import {mergeExportActionsIntoLiveData, shouldHydrateSearchExportActions} from './SearchResultsProviderUtils';
 
 type SearchResultsProviderProps = {
     children: React.ReactNode;
@@ -47,12 +50,18 @@ function SearchResultsProvider({children}: SearchResultsProviderProps) {
 
     const shouldUseLiveData = !!currentSearchKey && isTodoSearch(currentRecentSearchHash, suggestedSearches);
     const liveTodoData = useTodoSearchResults(shouldUseLiveData ? currentSearchKey : undefined);
+    const shouldHydrateExportActions = shouldUseLiveData && shouldHydrateSearchExportActions(currentSearchQueryJSON);
+    const exportActionsHydration = useSearchExportActionsHydration({
+        isEnabled: shouldHydrateExportActions,
+        primaryHash: currentSearchHash,
+        snapshotSearchResults,
+    });
 
     // If viewing a to-do search, use live Onyx data for the active category, otherwise return the snapshot data.
     // We do this so the results stay fresh as the user acts on reports, instead of showing a stale server snapshot.
     let currentSearchResults;
     if (shouldUseLiveData) {
-        const liveData = liveTodoData ?? {data: {}, metadata: {count: 0, total: 0, currency: undefined}};
+        const liveData = liveTodoData ?? {data: {} as SearchResults['data'], metadata: {count: 0, total: 0, currency: undefined}};
         const searchInfo: SearchResultsInfo = {
             ...(snapshotSearchResults?.search ?? defaultSearchInfo),
             count: liveData.metadata.count,
@@ -64,7 +73,7 @@ function SearchResultsProvider({children}: SearchResultsProviderProps) {
         // This ensures we show the empty state instead of loading/blocking views
         currentSearchResults = {
             search: {...searchInfo, isLoading: false, hasResults},
-            data: liveData.data,
+            data: mergeExportActionsIntoLiveData(liveData.data, exportActionsHydration.actions),
         };
     } else {
         currentSearchResults = snapshotSearchResults ?? undefined;
@@ -92,6 +101,12 @@ function SearchResultsProvider({children}: SearchResultsProviderProps) {
         currentSearchTransactionsByReportID,
         currentSearchViolations,
         shouldUseLiveData,
+        exportActionsHydration: {
+            isEnabled: shouldHydrateExportActions,
+            lastCapturedOffset: exportActionsHydration.lastCapturedOffset,
+            snapshotSearch: snapshotSearchResults?.search,
+            hasSnapshotErrors: Object.keys(snapshotSearchResults?.errors ?? {}).length > 0,
+        },
         sortedReportIDs,
         shouldShowFiltersBarLoading,
         lastSearchType,

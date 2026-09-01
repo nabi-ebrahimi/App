@@ -102,6 +102,7 @@ import useSearchSnapshot from './hooks/useSearchSnapshot';
 import SearchChartView from './SearchChartView';
 import SearchChartWrapper from './SearchChartWrapper';
 import {useSearchQueryActions, useSearchQueryContext, useSearchResultsActions, useSearchResultsContext, useSearchSelectionActions, useSearchSelectionContext} from './SearchContext';
+import {getNextExportActionsHydrationOffset} from './SearchResultsProviderUtils';
 import {SearchScopeProvider} from './SearchScopeProvider';
 import SearchTableHeader from './SearchTableHeader';
 import SearchWriteActionsProvider from './SearchWriteActionsProvider';
@@ -149,7 +150,7 @@ function Search({
 
     const {markReportRHPWidth, unmarkReportRHPWidth} = useWideRHPActions();
     const {currentSearchHash, currentSearchKey, shouldResetSearchQuery, suggestedSearches} = useSearchQueryContext();
-    const {lastSearchType, shouldUseLiveData} = useSearchResultsContext();
+    const {lastSearchType, shouldUseLiveData, exportActionsHydration} = useSearchResultsContext();
 
     const {setShouldResetSearchQuery} = useSearchQueryActions();
     const {setShouldShowFiltersBarLoading} = useSearchResultsActions();
@@ -496,6 +497,24 @@ function Search({
         validGroupBy,
         searchRequestOffset,
     ]);
+
+    useEffect(() => {
+        const nextOffset = getNextExportActionsHydrationOffset({
+            isEnabled: !!exportActionsHydration?.isEnabled,
+            isFocused,
+            isOffline,
+            hasSnapshotErrors: !!exportActionsHydration?.hasSnapshotErrors,
+            primaryHash: hash,
+            currentOffset: offset,
+            lastCapturedOffset: exportActionsHydration?.lastCapturedOffset,
+            snapshotSearch: exportActionsHydration?.snapshotSearch,
+        });
+        if (nextOffset === undefined) {
+            return;
+        }
+
+        setOffset((currentOffset) => (currentOffset === offset ? nextOffset : currentOffset));
+    }, [exportActionsHydration, hash, isFocused, isOffline, offset]);
 
     useEffect(() => {
         if (!isSearchResultsEmpty || prevIsSearchResultEmpty) {
@@ -1184,7 +1203,7 @@ function Search({
         contentContainerStyle: [styles.pb3, contentContainerStyle],
         containerStyle: [styles.pv0],
         onScroll: onSearchListScroll,
-        onEndReached: fetchMoreResults,
+        onEndReached: exportActionsHydration?.isEnabled ? undefined : fetchMoreResults,
         ListFooterComponent: listFooterComponent,
         onLayout,
         isMobileSelectionModeEnabled,

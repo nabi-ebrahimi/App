@@ -6,7 +6,7 @@ import type {SearchKey, SearchTypeMenuItem} from '@libs/SearchUIUtils';
 
 import type CONST from '@src/CONST';
 import type {Report, ReportAction, SearchResults, Transaction, TransactionViolation} from '@src/types/onyx';
-import type {SearchDataTypes} from '@src/types/onyx/SearchResults';
+import type {SearchDataTypes, SearchResultsInfo} from '@src/types/onyx/SearchResults';
 import type IconAsset from '@src/types/utils/IconAsset';
 
 import type {StyleProp, ViewStyle} from 'react-native';
@@ -203,6 +203,13 @@ type SearchResultsContextValue = {
     currentSearchViolations: OnyxCollection<TransactionViolation[]>;
     /** Whether we're on a main to-do search and should use live Onyx data instead of snapshots */
     shouldUseLiveData: boolean;
+    /** Snapshot request state used to hydrate export actions without exposing snapshot rows as live results. */
+    exportActionsHydration?: {
+        isEnabled: boolean;
+        lastCapturedOffset: number | undefined;
+        snapshotSearch: SearchResultsInfo | undefined;
+        hasSnapshotErrors: boolean;
+    };
     sortedReportIDs: ReadonlyArray<string | undefined>;
     shouldShowFiltersBarLoading: boolean;
     lastSearchType: string | undefined;
