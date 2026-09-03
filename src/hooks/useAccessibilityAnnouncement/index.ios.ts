@@ -5,6 +5,8 @@ import {AccessibilityInfo} from 'react-native';
 
 import type UseAccessibilityAnnouncementOptions from './types';
 
+// asdfsadf asdfdsf
+
 const DELAY_FOR_ACCESSIBILITY_TREE_SYNC = 100;
 
 function useAccessibilityAnnouncement(message: string | ReactNode, shouldAnnounceMessage: boolean, options?: UseAccessibilityAnnouncementOptions) {
