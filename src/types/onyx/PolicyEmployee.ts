@@ -18,6 +18,9 @@ type PolicyEmployee = OnyxCommon.OnyxValueWithOfflineFeedback<{
 
     email?: string;
 
+    /** AccountID associated with an optimistic workspace-member invite. Client-only. */
+    invitedAccountID?: number | null;
+
     /** Determines if this employee should approve a report. If report total > approvalLimit, next approver will be 'overLimitForwardsTo', otherwise 'forwardsTo'. Set to null to clear. */
     approvalLimit?: number | null;
 

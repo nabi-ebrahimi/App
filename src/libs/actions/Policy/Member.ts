@@ -27,7 +27,18 @@ import * as FormActions from '@userActions/FormActions';
 
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
-import type {ImportedSpreadsheetMemberData, InvitedEmailsToAccountIDs, Policy, PolicyEmployee, PolicyOwnershipChangeChecks, Report, ReportAction, ReportActions} from '@src/types/onyx';
+import type {
+    ImportedSpreadsheetMemberData,
+    InvitedEmailsToAccountIDs,
+    PersonalDetailsList,
+    Policy,
+    PolicyEmployee,
+    PolicyEmployeeList,
+    PolicyOwnershipChangeChecks,
+    Report,
+    ReportAction,
+    ReportActions,
+} from '@src/types/onyx';
 import type {ImportFinalModal} from '@src/types/onyx/ImportedSpreadsheet';
 import type {PendingAction} from '@src/types/onyx/OnyxCommon';
 import type {JoinWorkspaceResolution} from '@src/types/onyx/OriginalMessage';
@@ -839,6 +850,9 @@ function buildAddMembersToWorkspaceOnyxData(
 ) {
     const policyID = policy.id;
     const logins = Object.keys(invitedEmailsToAccountIDs).map((memberLogin) => PhoneNumber.addSMSDomainIfPhoneNumber(memberLogin));
+    const invitedAccountIDsByLogin: Record<string, number> = Object.fromEntries(
+        Object.entries(invitedEmailsToAccountIDs).map(([memberLogin, accountID]) => [PhoneNumber.addSMSDomainIfPhoneNumber(memberLogin), accountID]),
+    );
     const accountIDs = Object.values(invitedEmailsToAccountIDs);
 
     const policyKey = `${ONYXKEYS.COLLECTION.POLICY}${policyID}` as const;
@@ -883,6 +897,7 @@ function buildAddMembersToWorkspaceOnyxData(
     for (const email of logins) {
         optimisticMembersState[email] = {
             email,
+            invitedAccountID: invitedAccountIDsByLogin[email],
             pendingAction: CONST.RED_BRICK_ROAD_PENDING_ACTION.ADD,
             role: effectiveRole,
             submitsTo: approverEmail ?? getDefaultApprover(policy),
@@ -973,6 +988,44 @@ function buildAddMembersToWorkspaceOnyxData(
     failureData.push(...membersChats.onyxFailureData, ...announceRoomChat.onyxFailureData, ...(announceRoomMembers.failureData ?? []), ...(adminRoomMembers.failureData ?? []));
 
     return {optimisticData, successData, failureData, optimisticAnnounceChat, membersChats, logins, effectiveRole};
+}
+
+/**
+ * Reconciles an optimistic secondary-login entry after the account is available under its canonical login.
+ * This only considers entries carrying the client-only invite marker, so members whose details are missing are preserved.
+ */
+function reconcileInvitedSecondaryLoginMembers(policyID: string | undefined, employeeList: PolicyEmployeeList | undefined, personalDetails: PersonalDetailsList | undefined) {
+    if (!policyID || !employeeList || !personalDetails) {
+        return;
+    }
+
+    const employeeListUpdates: OnyxCollectionInputValue<PolicyEmployee> = {};
+    for (const [invitedLogin, employee] of Object.entries(employeeList)) {
+        const invitedAccountID = employee?.invitedAccountID;
+        if (!invitedAccountID || employee.pendingAction || !isEmptyObject(employee.errors)) {
+            continue;
+        }
+
+        const canonicalLogin = personalDetails[invitedAccountID]?.login;
+        if (!canonicalLogin) {
+            continue;
+        }
+
+        if (canonicalLogin === invitedLogin) {
+            employeeListUpdates[invitedLogin] = {invitedAccountID: null};
+            continue;
+        }
+
+        if (employeeList[canonicalLogin]) {
+            employeeListUpdates[invitedLogin] = null;
+        }
+    }
+
+    if (isEmptyObject(employeeListUpdates)) {
+        return;
+    }
+
+    Onyx.merge(`${ONYXKEYS.COLLECTION.POLICY}${policyID}`, {employeeList: employeeListUpdates});
 }
 
 /**
@@ -1467,6 +1520,7 @@ export {
     requestWorkspaceOwnerChange,
     clearWorkspaceOwnerChangeFlow,
     buildAddMembersToWorkspaceOnyxData,
+    reconcileInvitedSecondaryLoginMembers,
     addMembersToWorkspace,
     clearDeleteMemberError,
     clearAddMemberError,

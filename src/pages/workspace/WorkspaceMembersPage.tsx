@@ -38,6 +38,7 @@ import {
     clearWorkspaceOwnerChangeFlow,
     downloadMembersCSV,
     openWorkspaceMembersPage,
+    reconcileInvitedSecondaryLoginMembers,
     removeMembers,
     updateWorkspaceMembersRole,
 } from '@libs/actions/Policy/Member';
@@ -211,6 +212,10 @@ function WorkspaceMembersPage({personalDetails, route, policy}: WorkspaceMembers
         }
         getWorkspaceMembers();
     }, [isOffline, prevIsOffline, getWorkspaceMembers]);
+
+    useEffect(() => {
+        reconcileInvitedSecondaryLoginMembers(policyID, policy?.employeeList, personalDetails);
+    }, [policyID, policy?.employeeList, personalDetails]);
 
     /**
      * Open the modal to invite a user

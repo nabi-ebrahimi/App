@@ -8,6 +8,7 @@ import LoadTest from './LoadTest';
 import Logging from './Logging';
 import {Pagination} from './Pagination';
 import Reauthentication from './Reauthentication';
+import ReconcileOptimisticWorkspaceMemberInvite from './ReconcileOptimisticWorkspaceMemberInvite';
 import RecordFullReconnectTime from './RecordFullReconnectTime';
 import SaveResponseInOnyx from './SaveResponseInOnyx';
 import SentryServerTiming from './SentryServerTiming';
@@ -20,6 +21,7 @@ export {
     Logging,
     Reauthentication,
     RecordFullReconnectTime,
+    ReconcileOptimisticWorkspaceMemberInvite,
     FailureTracking,
     SaveResponseInOnyx,
     Pagination,
