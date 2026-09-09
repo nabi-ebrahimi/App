@@ -2323,7 +2323,8 @@ function getTransactionsSections({
                 policy,
             );
             // Use Map.get() for faster lookups with default values
-            const fromAccountID = reportAction?.actorAccountID ?? report?.ownerAccountID;
+            const isUnreported = !transactionItem.reportID || transactionItem.reportID === CONST.REPORT.UNREPORTED_REPORT_ID;
+            const fromAccountID = reportAction?.actorAccountID ?? report?.ownerAccountID ?? (isUnreported ? currentAccountID : undefined);
             const from = fromAccountID ? (personalDetailsMap.get(fromAccountID.toString()) ?? emptyPersonalDetails) : emptyPersonalDetails;
             const to = getToFieldValueForTransaction(transactionItem, report, data.personalDetailsList, reportAction);
             const isIOUReport = report?.type === CONST.REPORT.TYPE.IOU;
@@ -2346,7 +2347,6 @@ function getTransactionsSections({
             const reportOwnerAccountIDAsAttendee = getReportOwnerAccountIDAsAttendee(transactionItem, currentAccountID);
             const reportOwnerAsAttendee = reportOwnerAccountIDAsAttendee ? getReportOwnerAsAttendee(personalDetailsMap.get(reportOwnerAccountIDAsAttendee.toString())) : undefined;
             const transactionAttendees = getAttendees(transactionItem, reportOwnerAsAttendee);
-            const isUnreported = transactionItem.reportID === CONST.REPORT.UNREPORTED_REPORT_ID;
             // For unreported transactions, attendee tracking is gated by the policy-for-moving-expenses.
             // The caller passes the precomputed boolean instead of the policy object so the screen-level
             // getSections memo does not recompute when unrelated fields of that policy change.
