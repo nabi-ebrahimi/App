@@ -40,63 +40,44 @@ const LOCATION_PUCK_PULSING = {
 
 const CURRENT_LOCATION_PUCK_IMAGE = 'current-location-puck-image';
 
-function GPSMapView({accessToken, style, mapPadding, styleURL, pitchEnabled, waypoints, directionCoordinates: directionCoordinatesProp, isTrackingGPS}: GPSMapViewProps) {
+type GPSMapboxViewProps = Omit<GPSMapViewProps, 'accessToken'> & {
+    foregroundLocationPermissionsGranted: boolean;
+};
+
+function GPSMapboxView({
+    style,
+    mapPadding,
+    styleURL,
+    pitchEnabled,
+    waypoints,
+    directionCoordinates: directionCoordinatesProp,
+    isTrackingGPS,
+    foregroundLocationPermissionsGranted,
+}: GPSMapboxViewProps) {
     const directionCoordinates = utils.convertSegmentedRouteToSingleSegmentRoute(directionCoordinatesProp);
     const noWaypoints = !waypoints || waypoints.length === 0;
 
-    const {isOffline} = useNetwork();
     const {translate} = useLocalize();
     const styles = useThemeStyles();
     const theme = useTheme();
     const expensifyIcons = useMemoizedLazyExpensifyIcons(['Crosshair', 'MapCurrentLocationPuck', 'MapCurrentLocation']);
-    const isAccessTokenReady = useAccessToken({accessToken});
 
     const cameraRef = useRef<Mapbox.Camera>(null);
-
-    const [foregroundLocationPermissionsGranted, setForegroundLocationPermissionsGranted] = useState<boolean | null>(null);
-
-    // Check (never request) foreground location permissions to determine if we can use the followUserLocation prop on the map camera.
-    // Requesting here would trigger an OS prompt on open without a prior explicit user action, so we only read the current status.
-    useFocusEffect(() => {
-        if (isOffline) {
-            return;
-        }
-
-        let ignore = false;
-        getForegroundPermissionsAsync().then(({granted}) => {
-            if (ignore) {
-                return;
-            }
-            setForegroundLocationPermissionsGranted(granted);
-        });
-
-        return () => {
-            ignore = true;
-        };
-    });
-
-    // Check for foreground location permissions in case user backgrounded app and foregrounded it again
-    // to ensure we have the latest permissions status in case user changed them in the settings in the meantime
-    useAppFocusEvent(() => {
-        if (isOffline) {
-            return;
-        }
-        getForegroundPermissionsAsync().then(({granted}) => {
-            setForegroundLocationPermissionsGranted(granted);
-        });
-    });
-
     const [userLocation] = useOnyx(ONYXKEYS.USER_LOCATION);
     const centerCoordinate = userLocation ? [userLocation.longitude, userLocation.latitude] : CONST.MAPBOX.DEFAULT_COORDINATE;
 
+    const [isStyleReady, setIsStyleReady] = useState(false);
+    const [hasLocationForCurrentMap, setHasLocationForCurrentMap] = useState(false);
     const [userInteractedWithMap, setUserInteractedWithMap] = useState(false);
     const [shouldUseImmediateFollowTransition, setShouldUseImmediateFollowTransition] = useState(noWaypoints || isTrackingGPS);
     const [lastLocation, setLastLocation] = useState<{longitude: number; latitude: number} | undefined>();
 
+    const isMapReadyToFollowUser = isStyleReady && hasLocationForCurrentMap;
+
     // Determines if map can be panned to user's detected location without bothering the user. It will return
     // false if user has already started dragging the map or if there are one or more waypoints present
     // and the GPS trip is not active or the foreground location permissions are not granted.
-    const shouldFollowUserLocation = !userInteractedWithMap && (noWaypoints || isTrackingGPS) && foregroundLocationPermissionsGranted !== false;
+    const shouldFollowUserLocation = isMapReadyToFollowUser && !userInteractedWithMap && (noWaypoints || isTrackingGPS) && foregroundLocationPermissionsGranted;
 
     // When the route/waypoints are cleared (e.g. discarding a GPS trip),
     // resume following the user's current location.
@@ -153,8 +134,8 @@ function GPSMapView({accessToken, style, mapPadding, styleURL, pitchEnabled, way
         }
     };
 
-    const getWaypointBounds = () => {
-        if (!waypoints || userInteractedWithMap || (!waypoints.length && !directionCoordinates?.length)) {
+    const getTripBounds = () => {
+        if (!waypoints || (!waypoints.length && !directionCoordinates?.length)) {
             return undefined;
         }
 
@@ -165,24 +146,30 @@ function GPSMapView({accessToken, style, mapPadding, styleURL, pitchEnabled, way
         return {ne: northEast, sw: southWest};
     };
 
-    const waypointsBounds = getWaypointBounds();
+    const tripBounds = getTripBounds();
+    const waypointsBounds = userInteractedWithMap ? undefined : tripBounds;
 
     const onUserLocationUpdate = (update: Mapbox.Location) => {
         const coords = update.coords;
+        if (!Number.isFinite(coords.longitude) || !Number.isFinite(coords.latitude) || coords.longitude < -180 || coords.longitude > 180 || coords.latitude < -90 || coords.latitude > 90) {
+            return;
+        }
+
         setLastLocation({longitude: coords.longitude, latitude: coords.latitude});
+        setHasLocationForCurrentMap(true);
     };
 
-    const shouldFollowFallbackLocation = noWaypoints && foregroundLocationPermissionsGranted === false;
+    const shouldUseFallbackLocation = !tripBounds && !userInteractedWithMap && (!isMapReadyToFollowUser || !foregroundLocationPermissionsGranted);
 
     const cameraPadding: Mapbox.CameraPadding | undefined =
         mapPadding !== undefined ? {paddingLeft: mapPadding, paddingRight: mapPadding, paddingTop: mapPadding, paddingBottom: mapPadding} : undefined;
 
-    // defaultSettings with bounds ensures there is immediate snap to GPS trip on map load
+    // Always give a newly mounted camera a usable initial position while it waits for the style and native location provider.
     const defaultSettings: Mapbox.CameraStop | undefined = {
-        bounds: waypointsBounds,
-        padding: waypointsBounds ? cameraPadding : undefined,
-        centerCoordinate: shouldFollowFallbackLocation ? centerCoordinate : undefined,
-        zoomLevel: shouldFollowFallbackLocation ? CONST.MAPBOX.DEFAULT_ZOOM : undefined,
+        bounds: tripBounds,
+        padding: tripBounds ? cameraPadding : undefined,
+        centerCoordinate: tripBounds ? undefined : centerCoordinate,
+        zoomLevel: tripBounds ? undefined : CONST.MAPBOX.DEFAULT_ZOOM,
     };
 
     const mapHeading = useSharedValue(0);
@@ -191,11 +178,12 @@ function GPSMapView({accessToken, style, mapPadding, styleURL, pitchEnabled, way
         mapHeading.set(e.properties.heading ?? 0);
     };
 
-    return !isOffline && isAccessTokenReady && foregroundLocationPermissionsGranted !== null ? (
+    return (
         <View style={style}>
             <Mapbox.MapView
                 style={{flex: 1}}
                 styleURL={styleURL}
+                onDidFinishLoadingStyle={() => setIsStyleReady(true)}
                 onTouchStart={() => setUserInteractedWithMap(true)}
                 pitchEnabled={pitchEnabled}
                 attributionPosition={{...styles.r2, ...styles.b2}}
@@ -227,7 +215,8 @@ function GPSMapView({accessToken, style, mapPadding, styleURL, pitchEnabled, way
                     followZoomLevel={CONST.MAPBOX.DEFAULT_ZOOM}
                     bounds={waypointsBounds ? {...waypointsBounds, ...cameraPadding} : undefined}
                     defaultSettings={defaultSettings}
-                    centerCoordinate={shouldFollowFallbackLocation ? centerCoordinate : undefined}
+                    centerCoordinate={shouldUseFallbackLocation ? centerCoordinate : undefined}
+                    zoomLevel={shouldUseFallbackLocation ? CONST.MAPBOX.DEFAULT_ZOOM : undefined}
                 />
 
                 {/** Show fallback location if foreground location permissions are not granted */}
@@ -302,6 +291,53 @@ function GPSMapView({accessToken, style, mapPadding, styleURL, pitchEnabled, way
                 </Button>
             </View>
         </View>
+    );
+}
+
+function GPSMapView({accessToken, ...mapViewProps}: GPSMapViewProps) {
+    const {isOffline} = useNetwork();
+    const {translate} = useLocalize();
+    const styles = useThemeStyles();
+    const isAccessTokenReady = useAccessToken({accessToken});
+
+    const [foregroundLocationPermissionsGranted, setForegroundLocationPermissionsGranted] = useState<boolean | null>(null);
+
+    // Check (never request) foreground location permissions to determine if we can use the followUserLocation prop on the map camera.
+    // Requesting here would trigger an OS prompt on open without a prior explicit user action, so we only read the current status.
+    useFocusEffect(() => {
+        if (isOffline) {
+            return;
+        }
+
+        let ignore = false;
+        getForegroundPermissionsAsync().then(({granted}) => {
+            if (ignore) {
+                return;
+            }
+            setForegroundLocationPermissionsGranted(granted);
+        });
+
+        return () => {
+            ignore = true;
+        };
+    });
+
+    // Check for foreground location permissions in case user backgrounded app and foregrounded it again
+    // to ensure we have the latest permissions status in case user changed them in the settings in the meantime
+    useAppFocusEvent(() => {
+        if (isOffline) {
+            return;
+        }
+        getForegroundPermissionsAsync().then(({granted}) => {
+            setForegroundLocationPermissionsGranted(granted);
+        });
+    });
+
+    return !isOffline && isAccessTokenReady && foregroundLocationPermissionsGranted !== null ? (
+        <GPSMapboxView
+            {...mapViewProps}
+            foregroundLocationPermissionsGranted={foregroundLocationPermissionsGranted}
+        />
     ) : (
         <PendingMapView
             title={translate('distance.mapPending.title')}
