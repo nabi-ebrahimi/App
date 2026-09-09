@@ -2731,6 +2731,43 @@ describe('SearchUIUtils', () => {
             ).toEqual(transactionsListItems);
         });
 
+        it.each([
+            ['offline', CONST.REPORT.UNREPORTED_REPORT_ID],
+            ['reconnecting', ''],
+        ])('should resolve From to the current user for an unreported transaction while %s', (_state, unreportedReportID) => {
+            const movedTransactionID = `moved-transaction-${_state}`;
+            const testData: OnyxTypes.SearchResults['data'] = {
+                ...searchResults.data,
+                [`${ONYXKEYS.COLLECTION.TRANSACTION}${movedTransactionID}`]: {
+                    ...searchResults.data[`${ONYXKEYS.COLLECTION.TRANSACTION}${transactionID}`],
+                    transactionID: movedTransactionID,
+                    reportID: unreportedReportID,
+                },
+            };
+
+            const [transactions] = getSectionsByType(
+                SearchUIUtils.getSections({
+                    dateFnsLocale: undefined,
+                    type: CONST.SEARCH.DATA_TYPES.EXPENSE,
+                    data: testData,
+                    currentAccountID: adminAccountID,
+                    currentUserEmail: adminEmail,
+                    translate: translateLocal,
+                    formatPhoneNumber,
+                    bankAccountList: {},
+                    conciergeReportID: undefined,
+                    convertToDisplayString,
+                    reportAttributesDerivedValue: {},
+                }),
+                SearchUIUtils.isTransactionListItemType,
+            );
+
+            const movedTransaction = transactions.find((item) => item.transactionID === movedTransactionID);
+            expect(movedTransaction?.from.accountID).toBe(adminAccountID);
+            expect(movedTransaction?.from.avatar).toBe(searchResults.data.personalDetailsList?.[adminAccountID]?.avatar);
+            expect(movedTransaction?.formattedFrom).toBe('Admin');
+        });
+
         it('should include iouRequestType property for distance transactions', () => {
             const distanceTransactionID = 'distance_transaction_123';
             const testSearchResults = {
