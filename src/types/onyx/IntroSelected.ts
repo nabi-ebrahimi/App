@@ -37,6 +37,9 @@ type IntroSelected = {
     /** Task reportID for 'reviewWorkspaceSettings' type */
     reviewWorkspaceSettings?: string;
 
+    /** Locally retained successful settings review, used if invited-admin task creation needs to be retried. */
+    hasReviewedWorkspaceSettings?: boolean;
+
     previousChoices?: OnboardingPurpose[];
 
     /** The personal track goal selected during onboarding */

@@ -387,6 +387,9 @@ type OpenReportActionParams = {
 
     /** The Concierge chat report used to build the guided setup onboarding data */
     conciergeChat: OnyxEntry<Report>;
+
+    /** Reuse task IDs already generated for a dependent workspace-settings command. */
+    guidedSetup?: GuidedSetupDataForOpenReport;
 };
 
 type PregeneratedResponseParams = {
@@ -1568,6 +1571,7 @@ type GuidedSetupDataForOpenReport = {
     successData: GuidedSetupSuccessOnyxUpdate[];
     failureData: GuidedSetupFailureOnyxUpdate[];
     guidedSetupData: string;
+    reviewWorkspaceSettingsTaskInformation?: NonNullable<ReturnType<typeof prepareOnboardingOnyxData>>['reviewWorkspaceSettingsTaskInformation'];
 };
 
 function buildParticipantInfoFromLogins(logins: string[], accountIDs?: number[]): ParticipantInfo[] {
@@ -1619,6 +1623,10 @@ function getGuidedSetupDataForOpenReport(
         onboardingMessage.tasks = updatedTasks;
     }
 
+    if (isPendingInviteOnboarding && choice === CONST.ONBOARDING_CHOICES.ADMIN && introSelected.hasReviewedWorkspaceSettings) {
+        onboardingMessage.tasks = onboardingMessage.tasks.map((task) => (task.type === CONST.ONBOARDING_TASK_TYPE.REVIEW_WORKSPACE_SETTINGS ? {...task, autoCompleted: true} : task));
+    }
+
     const onboardingData = prepareOnboardingOnyxData({
         introSelected,
         engagementChoice: choice,
@@ -1646,8 +1654,16 @@ function getGuidedSetupDataForOpenReport(
             },
         ] as GuidedSetupOptimisticOnyxUpdate[],
         successData: onboardingData.successData as GuidedSetupSuccessOnyxUpdate[],
-        failureData: onboardingData.failureData as GuidedSetupFailureOnyxUpdate[],
+        failureData: [
+            ...onboardingData.failureData,
+            {
+                onyxMethod: Onyx.METHOD.MERGE,
+                key: ONYXKEYS.NVP_INTRO_SELECTED,
+                value: {isInviteOnboardingComplete: introSelected.isInviteOnboardingComplete ?? null},
+            },
+        ] as GuidedSetupFailureOnyxUpdate[],
         guidedSetupData: JSON.stringify(onboardingData.guidedSetupData),
+        reviewWorkspaceSettingsTaskInformation: onboardingData.reviewWorkspaceSettingsTaskInformation,
     };
 }
 
@@ -1678,6 +1694,7 @@ function openReport(params: OpenReportActionParams) {
         hasReportActions,
         shouldMarkAsRead = true,
         conciergeChat,
+        guidedSetup: prebuiltGuidedSetup,
     } = params;
     if (!reportID) {
         return;
@@ -1910,7 +1927,7 @@ function openReport(params: OpenReportActionParams) {
         });
     }
 
-    const guidedSetup = getGuidedSetupDataForOpenReport(introSelected, currentUserAccountID, conciergeChat, isSelfTourViewed, hasCompletedGuidedSetupFlow);
+    const guidedSetup = prebuiltGuidedSetup ?? getGuidedSetupDataForOpenReport(introSelected, currentUserAccountID, conciergeChat, isSelfTourViewed, hasCompletedGuidedSetupFlow);
     if (guidedSetup) {
         optimisticData.push(...guidedSetup.optimisticData);
         successData.push(...guidedSetup.successData);

@@ -2256,10 +2256,7 @@ function updateGeneralSettings(policy: OnyxEntry<Policy>, name: string, currency
  * Merge the optimistic "Review your workspace settings" onboarding-task completion data (built in the calling
  * component via getReviewWorkspaceSettingsTaskCompletionData) into a workspace-settings command's onyxData.
  */
-function withReviewWorkspaceSettingsTaskData<TKey extends OnyxKey>(
-    onyxData: OnyxData<TKey>,
-    reviewWorkspaceSettingsTaskData: OnyxData<typeof ONYXKEYS.COLLECTION.REPORT | typeof ONYXKEYS.COLLECTION.REPORT_ACTIONS>,
-) {
+function withReviewWorkspaceSettingsTaskData<TKey extends OnyxKey>(onyxData: OnyxData<TKey>, reviewWorkspaceSettingsTaskData: OnboardingTaskCompletionOnyxData) {
     const merged = {
         ...onyxData,
         optimisticData: [...(onyxData.optimisticData ?? []), ...(reviewWorkspaceSettingsTaskData.optimisticData ?? [])],

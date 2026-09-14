@@ -12929,7 +12929,26 @@ function prepareOnboardingOnyxData({
         });
     }
 
-    return {optimisticData, successData, failureData, guidedSetupData, actorAccountID, selfDMParameters, optimisticConciergeReportActionID};
+    const reviewWorkspaceSettingsTask = tasksData.find(({task}) => task.type === CONST.ONBOARDING_TASK_TYPE.REVIEW_WORKSPACE_SETTINGS);
+    const reviewWorkspaceSettingsTaskInformation = reviewWorkspaceSettingsTask
+        ? {
+              taskReport: {
+                  ...reviewWorkspaceSettingsTask.currentTask,
+                  ...(reviewWorkspaceSettingsTask.completedTaskReportAction && {
+                      stateNum: CONST.REPORT.STATE_NUM.APPROVED,
+                      statusNum: CONST.REPORT.STATUS_NUM.APPROVED,
+                  }),
+              },
+              taskParentReport: {...targetChatReport, reportID: targetChatReportID, hasOutstandingChildTask},
+              parentReportAction: reviewWorkspaceSettingsTask.taskReportAction.reportAction,
+              isOnboardingTaskParentReportArchived: false,
+              hasOutstandingChildTask: tasksData.some(
+                  ({currentTask, completedTaskReportAction}) => currentTask.reportID !== reviewWorkspaceSettingsTask.currentTask.reportID && !completedTaskReportAction,
+              ),
+          }
+        : undefined;
+
+    return {optimisticData, successData, failureData, guidedSetupData, actorAccountID, selfDMParameters, optimisticConciergeReportActionID, reviewWorkspaceSettingsTaskInformation};
 }
 
 /**

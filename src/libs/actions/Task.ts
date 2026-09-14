@@ -633,7 +633,7 @@ function buildTaskData(
  * creating a duplicate "marked as complete" action. The `OnyxData` shape is preserved so existing consumers that
  * only read optimistic/success/failure data keep working.
  */
-type OnboardingTaskCompletionOnyxData = OnyxData<typeof ONYXKEYS.COLLECTION.REPORT | typeof ONYXKEYS.COLLECTION.REPORT_ACTIONS> & {
+type OnboardingTaskCompletionOnyxData = OnyxData<typeof ONYXKEYS.COLLECTION.REPORT | typeof ONYXKEYS.COLLECTION.REPORT_ACTIONS | typeof ONYXKEYS.NVP_INTRO_SELECTED> & {
     completedTaskReportActionID?: string;
 };
 
@@ -1651,9 +1651,13 @@ type OnboardingTaskInformation = {
  * this task when it processes that command, hence `shouldSendCompleteTaskRequest: false`. The backend attributes
  * that completion to Concierge, so we build the optimistic action as Concierge too to avoid a wrong-owner flash.
  */
-function getReviewWorkspaceSettingsTaskCompletionData(taskInformation: OnboardingTaskInformation, currentUserAccountID: number): OnboardingTaskCompletionOnyxData {
+function getReviewWorkspaceSettingsTaskCompletionData(
+    taskInformation: OnboardingTaskInformation,
+    currentUserAccountID: number,
+    shouldRecordSuccessfulReview = false,
+): OnboardingTaskCompletionOnyxData {
     const {taskReport, taskParentReport, isOnboardingTaskParentReportArchived, hasOutstandingChildTask, parentReportAction} = taskInformation;
-    return getFinishOnboardingTaskOnyxData(
+    const completionData = getFinishOnboardingTaskOnyxData(
         taskReport,
         taskParentReport,
         isOnboardingTaskParentReportArchived,
@@ -1664,6 +1668,23 @@ function getReviewWorkspaceSettingsTaskCompletionData(taskInformation: Onboardin
         false,
         CONST.ACCOUNT_ID.CONCIERGE,
     );
+
+    if (!shouldRecordSuccessfulReview) {
+        return completionData;
+    }
+
+    // Only a confirmed settings save can complete a task recreated after OpenReport fails.
+    return {
+        ...completionData,
+        successData: [
+            ...(completionData.successData ?? []),
+            {
+                onyxMethod: Onyx.METHOD.MERGE,
+                key: ONYXKEYS.NVP_INTRO_SELECTED,
+                value: {hasReviewedWorkspaceSettings: true},
+            },
+        ],
+    };
 }
 
 /**
