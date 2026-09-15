@@ -243,6 +243,7 @@ function BaseOnboardingPersonalDetails({currentUserPersonalDetails, shouldUseNat
         >
             <OnboardingHeader
                 shouldShowBackButton={!isPrivateDomainAndHasAccessiblePolicies}
+                shouldEnableMaxHeight
                 onBackButtonPress={() => {
                     // Based on the `handleSubmit` function to reverse where to return
                     if (isPrivateDomainAndHasAccessiblePolicies) {

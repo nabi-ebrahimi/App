@@ -176,6 +176,7 @@ function BaseOnboardingWorkspaces({route, shouldUseNativeStyles}: BaseOnboarding
         >
             <OnboardingHeader
                 shouldShowBackButton={!shouldHideBackButton}
+                shouldEnableMaxHeight
                 onBackButtonPress={() => Navigation.goBack()}
             />
             <SelectionList

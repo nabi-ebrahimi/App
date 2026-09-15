@@ -131,6 +131,7 @@ function BaseOnboardingPrivateDomain({shouldUseNativeStyles, route}: BaseOnboard
         >
             <OnboardingHeader
                 shouldShowBackButton
+                shouldEnableMaxHeight
                 onBackButtonPress={handleBackButtonPress}
             />
             <ScrollView

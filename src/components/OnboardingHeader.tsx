@@ -1,56 +1,33 @@
-import {useMemoizedLazyExpensifyIcons} from '@hooks/useLazyAsset';
-import useLocalize from '@hooks/useLocalize';
-import useTheme from '@hooks/useTheme';
 import useThemeStyles from '@hooks/useThemeStyles';
 
-import variables from '@styles/variables';
-
-import CONST from '@src/CONST';
+import {useOnboardingStickyHeader} from '@libs/Navigation/AppNavigator/Navigators/OnboardingModalNavigatorContentWrapper/OnboardingStickyHeader';
 
 import React from 'react';
 import {View} from 'react-native';
-
-import Icon from './Icon';
-import {PressableWithoutFeedback} from './Pressable';
-import Text from './Text';
 
 type OnboardingHeaderProps = {
     onBackButtonPress?: () => void;
 
     shouldShowBackButton?: boolean;
+
+    /** Mirrors this screen's ScreenWrapper `shouldEnableMaxHeight` so the sticky caret tracks the card on mobile Safari. */
+    shouldEnableMaxHeight?: boolean;
+
+    /** Accounting only: collapse the caret with its title when the landscape keyboard opens. */
+    shouldCollapseOnKeyboard?: boolean;
 };
 
 /**
- * Popover-style back link: caret + "Back" label.
- * Matches the submenu back row used by PopoverMenu.
+ * Reserves the back-caret strip inside each onboarding card and registers the caret's config with the sticky
+ * header rendered once above the Stack.Navigator (see OnboardingStickyHeader). The visible caret is drawn by the
+ * sticky overlay so it never animates with the card, while this fixed-height strip keeps the card layout unchanged.
  */
-function OnboardingHeader({onBackButtonPress, shouldShowBackButton = true}: OnboardingHeaderProps) {
+function OnboardingHeader({onBackButtonPress, shouldShowBackButton = true, shouldEnableMaxHeight = false, shouldCollapseOnKeyboard = false}: OnboardingHeaderProps) {
     const styles = useThemeStyles();
-    const {translate} = useLocalize();
-    const theme = useTheme();
-    const icons = useMemoizedLazyExpensifyIcons(['BackArrow']);
 
-    return (
-        <View style={[styles.onboardingHeaderContainer]}>
-            {shouldShowBackButton ? (
-                <PressableWithoutFeedback
-                    onPress={onBackButtonPress}
-                    style={[styles.flexRow, styles.alignItemsCenter, styles.gap3]}
-                    role={CONST.ROLE.BUTTON}
-                    accessibilityLabel={translate('common.back')}
-                    sentryLabel="OnboardingHeader-Back"
-                >
-                    <Icon
-                        src={icons.BackArrow}
-                        fill={theme.icon}
-                        width={variables.iconSizeNormal}
-                        height={variables.iconSizeNormal}
-                    />
-                    <Text style={styles.createMenuHeaderText}>{translate('common.back')}</Text>
-                </PressableWithoutFeedback>
-            ) : null}
-        </View>
-    );
+    useOnboardingStickyHeader({shouldShowBackButton, onBackButtonPress, shouldEnableMaxHeight, shouldCollapseOnKeyboard});
+
+    return <View style={[styles.onboardingHeaderContainer]} />;
 }
 
 export default OnboardingHeader;

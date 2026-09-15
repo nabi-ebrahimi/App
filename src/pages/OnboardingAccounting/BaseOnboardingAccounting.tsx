@@ -293,7 +293,11 @@ function BaseOnboardingAccounting({shouldUseNativeStyles}: BaseOnboardingAccount
             shouldAvoidScrollOnVirtualViewport={!isMobileSafari()}
         >
             <CollapsibleHeaderOnKeyboard>
-                <OnboardingHeader onBackButtonPress={() => Navigation.goBack(ROUTES.ONBOARDING_INTERESTED_FEATURES.getRoute())} />
+                <OnboardingHeader
+                    shouldEnableMaxHeight={!isMobileSafari()}
+                    shouldCollapseOnKeyboard
+                    onBackButtonPress={() => Navigation.goBack(ROUTES.ONBOARDING_INTERESTED_FEATURES.getRoute())}
+                />
                 <View style={[onboardingIsMediumOrLargerScreenWidth && styles.mt5, onboardingIsMediumOrLargerScreenWidth ? styles.mh8 : styles.mh5]}>
                     <Text
                         style={[styles.textHeadlineH1, styles.mb5]}
