@@ -53,7 +53,7 @@ const prepareRequestPayload: PrepareRequestPayload = (command, data, initiatedOf
             }
 
             if (key === 'file' && initiatedOffline) {
-                const {uri: path = '', source, name, type} = value as File;
+                const {uri: path = '', source, name, type, receiptTraceId} = value as File & {receiptTraceId?: string};
                 if (!source) {
                     validateFormDataParameter(command, key, value);
                     formData.append(key, value as string | Blob);
@@ -62,13 +62,41 @@ const prepareRequestPayload: PrepareRequestPayload = (command, data, initiatedOf
                 }
                 // Use the actual file name if available, otherwise fall back to extracting from path/uri
                 const fileName = name || (path ? (path.split('/').pop() ?? '') : '') || '';
-                return readFileAsync(source, fileName, () => {}, undefined, type).then((file) => {
-                    if (!file) {
-                        return;
+                const resolvedSource = ReceiptStorage.resolve(source) ?? source;
+                return checkFileExistsWithReason(source).then((originalSourceResult) => {
+                    if (originalSourceResult.exists) {
+                        return readFileAsync(source, fileName, () => {}, undefined, type).then((file) => {
+                            if (!file) {
+                                return;
+                            }
+
+                            validateFormDataParameter(command, key, file);
+                            formData.append(key, file);
+                        });
                     }
 
-                    validateFormDataParameter(command, key, file);
-                    formData.append(key, file);
+                    if (resolvedSource === source) {
+                        const transactionID = typeof data.transactionID === 'string' ? data.transactionID : undefined;
+                        logReceiptDropped({receiptTraceId, transactionID, command, source, fileName, statError: originalSourceResult.error});
+                        return Promise.resolve();
+                    }
+
+                    return checkFileExistsWithReason(resolvedSource).then((resolvedSourceResult) => {
+                        if (!resolvedSourceResult.exists) {
+                            const transactionID = typeof data.transactionID === 'string' ? data.transactionID : undefined;
+                            logReceiptDropped({receiptTraceId, transactionID, command, source: resolvedSource, fileName, statError: resolvedSourceResult.error});
+                            return;
+                        }
+
+                        return readFileAsync(resolvedSource, fileName, () => {}, undefined, type).then((file) => {
+                            if (!file) {
+                                return;
+                            }
+
+                            validateFormDataParameter(command, key, file);
+                            formData.append(key, file);
+                        });
+                    });
                 });
             }
 

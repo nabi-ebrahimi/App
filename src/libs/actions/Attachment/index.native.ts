@@ -1,5 +1,7 @@
 import {getImageCacheFileExtension} from '@libs/AttachmentUtils';
+import fileURIToPath from '@libs/fileURIToPath';
 import Log from '@libs/Log';
+import ReceiptStorage from '@libs/ReceiptStorage';
 
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
@@ -15,8 +17,9 @@ import type {CacheAttachmentProps, GetCachedAttachmentProps, RemoveCachedAttachm
 const ATTACHMENT_DIR = `${RNFS.CachesDirectoryPath}/attachments`;
 
 async function cacheAttachment({attachmentID, uri, mimeType}: CacheAttachmentProps) {
-    const isLocalFile = uri.startsWith('file://');
     const fileExtension = getImageCacheFileExtension(mimeType ?? '');
+    const resolvedUri = ReceiptStorage.resolve(uri) ?? uri;
+    const isLocalFile = resolvedUri.startsWith('file://');
 
     // For local file uploads and the file type is supported for caching, then copy instead of re-downloading the file
     if (isLocalFile && fileExtension) {
@@ -26,7 +29,11 @@ async function cacheAttachment({attachmentID, uri, mimeType}: CacheAttachmentPro
         try {
             // The OS can purge Caches wholesale, so the directory may need recreating
             await RNFS.mkdir(ATTACHMENT_DIR);
-            await RNFS.copyFile(uri, destPath);
+            const rawPath = resolvedUri.slice('file://'.length);
+            const decodedPath = fileURIToPath(resolvedUri);
+            const decodedPathExists = await RNFS.exists(decodedPath);
+            const sourcePath = decodedPathExists ? decodedPath : rawPath;
+            await RNFS.copyFile(sourcePath, destPath);
             await Onyx.set(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`, {
                 attachmentID,
                 source: destPath,
@@ -75,11 +82,12 @@ async function cacheAttachment({attachmentID, uri, mimeType}: CacheAttachmentPro
 }
 
 async function getCachedAttachment({attachmentID, attachment, currentSource}: GetCachedAttachmentProps) {
+    const resolvedCurrentSource = ReceiptStorage.resolve(currentSource) ?? currentSource;
     const isStale = attachment ? attachment?.remoteSource && attachment.remoteSource !== currentSource : false;
     if (isStale) {
         // Only re-cache the [markdown-attachment] if it is outdated (updated)
-        cacheAttachment({attachmentID, uri: currentSource});
-        return currentSource;
+        cacheAttachment({attachmentID, uri: resolvedCurrentSource});
+        return resolvedCurrentSource;
     }
 
     const localSource = attachment?.source;
@@ -94,10 +102,10 @@ async function getCachedAttachment({attachmentID, attachment, currentSource}: Ge
             // reaches the image renderer.
             return localSource.startsWith('file://') ? localSource : `file://${localSource}`;
         }
-        cacheAttachment({attachmentID, uri: currentSource});
+        cacheAttachment({attachmentID, uri: resolvedCurrentSource});
     }
 
-    return currentSource;
+    return resolvedCurrentSource;
 }
 
 async function removeCachedAttachment({attachmentID, localSource}: RemoveCachedAttachmentProps): Promise<void> {

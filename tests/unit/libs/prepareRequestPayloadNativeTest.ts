@@ -8,8 +8,9 @@ jest.mock('@libs/fileDownload/checkFileExists', () => ({
     checkFileExistsWithReason: mockCheckFileExists,
 }));
 
+const mockReadFileAsync = jest.fn(() => Promise.resolve(null as unknown));
 jest.mock('@libs/fileDownload/FileUtils', () => ({
-    readFileAsync: jest.fn(() => Promise.resolve(null)),
+    readFileAsync: mockReadFileAsync,
 }));
 
 const mockValidateFormDataParameter = jest.fn();
@@ -120,6 +121,58 @@ describe('prepareRequestPayload (native)', () => {
 
         expect(formData.has('receipt')).toBe(false);
         expect(mockLogReceiptDropped).toHaveBeenCalledWith(expect.objectContaining({source: `file://${RECEIPTS_FOLDER}/gone.jpg`}));
+    });
+
+    it('should resolve a stale offline file source before reading it', async () => {
+        mockCheckFileExists.mockResolvedValueOnce({exists: false, error: {message: 'ENOENT: stale container', code: 'ENOENT'}}).mockResolvedValueOnce({exists: true});
+        const file = {name: 'offline.jpg', uri: 'file:///current/offline.jpg'};
+        mockReadFileAsync.mockResolvedValue(file);
+
+        const formData = await prepareRequestPayload(
+            'AddComment',
+            {
+                file: {
+                    source: 'file:///Containers/Data/Application/STALE/Documents/Receipts-Upload/offline.jpg',
+                    uri: 'file:///Containers/Data/Application/STALE/Documents/Receipts-Upload/offline.jpg',
+                    name: 'offline.jpg',
+                    type: 'image/jpeg',
+                    receiptTraceId: 'trace-offline',
+                },
+            },
+            true,
+        );
+
+        expect(mockCheckFileExists).toHaveBeenCalledWith(`file://${RECEIPTS_FOLDER}/offline.jpg`);
+        expect(mockReadFileAsync).toHaveBeenCalledWith(`file://${RECEIPTS_FOLDER}/offline.jpg`, 'offline.jpg', expect.any(Function), undefined, 'image/jpeg');
+        expect(formData.has('file')).toBe(true);
+    });
+
+    it('should report and omit a missing offline file instead of silently dropping it', async () => {
+        mockCheckFileExists.mockResolvedValue({exists: false, error: {message: 'ENOENT: no such file', code: 'ENOENT'}});
+
+        const formData = await prepareRequestPayload(
+            'AddComment',
+            {
+                file: {
+                    source: 'file:///Containers/Data/Application/STALE/Documents/Receipts-Upload/missing.jpg',
+                    uri: 'file:///Containers/Data/Application/STALE/Documents/Receipts-Upload/missing.jpg',
+                    name: 'missing.jpg',
+                    type: 'image/jpeg',
+                    receiptTraceId: 'trace-missing-offline',
+                },
+            },
+            true,
+        );
+
+        expect(formData.has('file')).toBe(false);
+        expect(mockReadFileAsync).not.toHaveBeenCalled();
+        expect(mockLogReceiptDropped).toHaveBeenCalledWith(
+            expect.objectContaining({
+                receiptTraceId: 'trace-missing-offline',
+                command: 'AddComment',
+                fileName: 'missing.jpg',
+            }),
+        );
     });
 
     it('should not check the filesystem for a bundled placeholder receipt', async () => {
