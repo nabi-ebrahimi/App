@@ -272,8 +272,6 @@ function BaseOnboardingPersonalDetails({currentUserPersonalDetails, shouldUseNat
                 isLoading={isLoading}
                 enabledWhenOffline
                 submitFlexEnabled
-                // Render the submit button outside the scroll so it stays above the keyboard on iOS/mWeb (same as Accounting's FixedFooter).
-                shouldSubmitButtonStickToBottom
                 shouldValidateOnBlur={false}
                 shouldValidateOnChange={shouldValidateOnChange}
                 shouldTrimValues={false}

@@ -222,8 +222,6 @@ function BaseOnboardingWorkEmail({shouldUseNativeStyles}: BaseOnboardingWorkEmai
                     submitButtonText={translate('onboarding.workEmail.addWorkEmail')}
                     enabledWhenOffline
                     submitFlexEnabled
-                    // Render the submit/skip buttons outside the scroll so they stay above the keyboard on iOS/mWeb (same as Accounting's FixedFooter).
-                    shouldSubmitButtonStickToBottom
                     shouldValidateOnBlur={false}
                     shouldValidateOnChange={shouldValidateOnChange}
                     shouldTrimValues={false}
