@@ -11182,6 +11182,8 @@ const translations = {
         },
         details: {
             title: 'Subscription details',
+            plan: 'Plan',
+            subscriptionType: 'Subscription type',
             annual: 'Annual subscription',
             creditBalance: 'Credit balance',
             taxExempt: 'Request tax exempt status',
@@ -11235,12 +11237,12 @@ const translations = {
         subscriptionSettings: {
             title: 'Subscription settings',
             editSubscription: 'Edit subscription',
-            summary: (subscriptionType: string, subscriptionSize: string, expensifyCode: string, autoRenew: string, autoIncrease: string) =>
-                `Subscription type: ${subscriptionType}, Subscription size: ${subscriptionSize}${expensifyCode ? `, Expensify code: ${expensifyCode}` : ''}, Auto renew: ${autoRenew}, Auto increase annual seats: ${autoIncrease}`,
             none: 'none',
             on: 'on',
             off: 'off',
             annual: 'Annual',
+            annualSubscriptionSize: (size: number) => `${size} ${size === 1 ? 'member' : 'members'} (Annual)`,
+            memberCount: (size: number) => `${size} ${size === 1 ? 'member' : 'members'}`,
             autoRenew: 'Auto-renew',
             autoIncrease: 'Auto-increase annual seats',
             saveUpTo: (amountWithCurrency: string) => `Save up to ${amountWithCurrency}/month per active member`,

@@ -26,6 +26,22 @@ function SubscriptionPlan() {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const illustrations = useMemoizedLazyIllustrations(['HandCard']);
 
+    const saveWithExpensifyContent = (
+        <View style={[styles.flexRow, styles.alignItemsCenter, styles.borderTop, styles.pv5]}>
+            <Icon
+                src={illustrations.HandCard}
+                width={variables.iconHeader}
+                height={variables.iconHeader}
+                additionalStyles={styles.mr2}
+            />
+            <View style={[styles.flexColumn, styles.justifyContentCenter, styles.flex1, styles.mr2]}>
+                <Text style={[styles.headerText, styles.mt2]}>{translate('subscription.yourPlan.saveWithExpensifyTitle')}</Text>
+                <Text style={[styles.textLabelSupporting, styles.mb2]}>{translate('subscription.yourPlan.saveWithExpensifyDescription')}</Text>
+            </View>
+            <SaveWithExpensifyButton />
+        </View>
+    );
+
     const renderTitle = () => {
         return (
             <View style={[styles.flexRow, styles.justifyContentBetween, styles.alignItemsCenter]}>
@@ -51,20 +67,10 @@ function SubscriptionPlan() {
             renderTitle={renderTitle}
             isCentralPane
         >
-            <SubscriptionPlanCard subscriptionPlan={subscriptionPlan} />
-            <View style={[styles.flexRow, styles.alignItemsCenter, styles.mt6]}>
-                <Icon
-                    src={illustrations.HandCard}
-                    width={variables.iconHeader}
-                    height={variables.iconHeader}
-                    additionalStyles={styles.mr2}
-                />
-                <View style={[styles.flexColumn, styles.justifyContentCenter, styles.flex1, styles.mr2]}>
-                    <Text style={[styles.headerText, styles.mt2]}>{translate('subscription.yourPlan.saveWithExpensifyTitle')}</Text>
-                    <Text style={[styles.textLabelSupporting, styles.mb2]}>{translate('subscription.yourPlan.saveWithExpensifyDescription')}</Text>
-                </View>
-                <SaveWithExpensifyButton />
-            </View>
+            <SubscriptionPlanCard
+                subscriptionPlan={subscriptionPlan}
+                saveWithExpensifyContent={saveWithExpensifyContent}
+            />
             <ComparePlansModal
                 isModalVisible={isModalVisible}
                 setIsModalVisible={setIsModalVisible}
