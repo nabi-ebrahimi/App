@@ -11,11 +11,21 @@ import type {SubPageProps} from '@hooks/useSubPage/types';
 import useThemeStyles from '@hooks/useThemeStyles';
 
 import {addPersonalBankAccount, clearPersonalBankAccount} from '@libs/actions/BankAccounts';
+import {setDraftValues, setErrorFields} from '@libs/actions/FormActions';
 import {continueSetup} from '@libs/actions/PaymentMethods';
 import {updateCurrentStep} from '@libs/actions/Wallet';
+import {doesContainReservedWord, getInvalidAddressErrorTranslationPath, isValidLegalName, isValidZipCode} from '@libs/ValidationUtils';
 
 import Navigation from '@navigation/Navigation';
 
+import Address from '@pages/EnablePayments/Wallet/PersonalInfo/substeps/AddressStep';
+import LegalName from '@pages/EnablePayments/Wallet/PersonalInfo/substeps/LegalNameStep';
+import {
+    getBankAccountOwnerDetails,
+    getFirstInvalidBankAccountOwnerPage,
+    getSkippedBankAccountOwnerPages,
+    getWalletOwnerDraftValues,
+} from '@pages/EnablePayments/Wallet/utils/getBankAccountOwnerDetails';
 import useIsBankAccountAdded from '@pages/EnablePayments/Wallet/utils/useIsBankAccountAdded';
 
 import CONST from '@src/CONST';
@@ -34,6 +44,8 @@ const ADD_BANK_ACCOUNT_SUB_PAGES = CONST.ENABLE_PAYMENTS.ADD_BANK_ACCOUNT_STEP.S
 
 const plaidPages = [
     {pageName: ADD_BANK_ACCOUNT_SUB_PAGES.PLAID, component: Plaid},
+    {pageName: ADD_BANK_ACCOUNT_SUB_PAGES.LEGAL_NAME, component: LegalName},
+    {pageName: ADD_BANK_ACCOUNT_SUB_PAGES.ADDRESS, component: Address},
     {pageName: ADD_BANK_ACCOUNT_SUB_PAGES.CONFIRMATION, component: Confirmation},
 ];
 
@@ -43,6 +55,9 @@ function AddBankAccount() {
     const [plaidData] = useOnyx(ONYXKEYS.PLAID_DATA);
     const [personalBankAccount] = useOnyx(ONYXKEYS.PERSONAL_BANK_ACCOUNT);
     const [personalBankAccountDraft] = useOnyx(ONYXKEYS.FORMS.PERSONAL_BANK_ACCOUNT_FORM_DRAFT);
+    const [walletAdditionalDetails] = useOnyx(ONYXKEYS.WALLET_ADDITIONAL_DETAILS);
+    const [walletAdditionalDetailsDraft] = useOnyx(ONYXKEYS.FORMS.WALLET_ADDITIONAL_DETAILS_DRAFT);
+    const [privatePersonalDetails] = useOnyx(ONYXKEYS.PRIVATE_PERSONAL_DETAILS);
     const [personalPolicyID] = useOnyx(ONYXKEYS.PERSONAL_POLICY_ID);
     const {translate} = useLocalize();
     const styles = useThemeStyles();
@@ -58,6 +73,45 @@ function AddBankAccount() {
             return;
         }
 
+        const owner = getBankAccountOwnerDetails({walletAdditionalDetailsDraft, walletAdditionalDetails, privatePersonalDetails});
+        const firstInvalidOwnerPage = getFirstInvalidBankAccountOwnerPage(owner);
+        if (firstInvalidOwnerPage) {
+            if (firstInvalidOwnerPage === ADD_BANK_ACCOUNT_SUB_PAGES.LEGAL_NAME) {
+                const getNameError = (name: string) => {
+                    if (!name) {
+                        return translate('common.error.fieldRequired');
+                    }
+                    if (!isValidLegalName(name) || name.length > CONST.LEGAL_NAME.MAX_LENGTH || doesContainReservedWord(name, CONST.DISPLAY_NAME.RESERVED_NAMES)) {
+                        return translate('privatePersonalDetails.error.hasInvalidCharacter');
+                    }
+                    return undefined;
+                };
+                const firstNameError = getNameError(owner.legalFirstName);
+                const lastNameError = getNameError(owner.legalLastName);
+                setErrorFields(ONYXKEYS.FORMS.WALLET_ADDITIONAL_DETAILS, {
+                    ...(firstNameError ? {legalFirstName: {validation: firstNameError}} : {}),
+                    ...(lastNameError ? {legalLastName: {validation: lastNameError}} : {}),
+                });
+            } else {
+                const invalidStreetError = owner.addressStreet ? getInvalidAddressErrorTranslationPath(owner.addressStreet) : undefined;
+                setErrorFields(ONYXKEYS.FORMS.WALLET_ADDITIONAL_DETAILS, {
+                    ...(!owner.addressStreet ? {addressStreet: {validation: translate('common.error.fieldRequired')}} : {}),
+                    ...(invalidStreetError ? {addressStreet: {validation: translate(invalidStreetError)}} : {}),
+                    ...(!owner.addressCity ? {addressCity: {validation: translate('common.error.fieldRequired')}} : {}),
+                    ...(!owner.addressState ? {addressState: {validation: translate('common.error.fieldRequired')}} : {}),
+                    ...(!owner.addressZipCode ? {addressZipCode: {validation: translate('common.error.fieldRequired')}} : {}),
+                    ...(owner.addressZipCode && !isValidZipCode(owner.addressZipCode) ? {addressZipCode: {validation: translate('bankAccount.error.zipCode')}} : {}),
+                });
+            }
+            Navigation.navigate(
+                ROUTES.SETTINGS_ENABLE_PAYMENTS.getRoute({
+                    page: CONST.ENABLE_PAYMENTS.PAGE_NAMES.ADD_BANK_ACCOUNT,
+                    subPage: firstInvalidOwnerPage,
+                }),
+            );
+            return;
+        }
+
         const bankAccounts = plaidData?.bankAccounts ?? [];
         const selectedPlaidBankAccount = bankAccounts.find((bankAccount) => bankAccount.plaidAccountID === personalBankAccountDraft?.plaidAccountID);
 
@@ -68,14 +122,42 @@ function AddBankAccount() {
                       ...selectedPlaidBankAccount,
                       plaidAccessToken: plaidData?.plaidAccessToken ?? '',
                   };
-            addPersonalBankAccount(bankAccountWithToken, personalPolicyID);
+            setDraftValues(ONYXKEYS.FORMS.WALLET_ADDITIONAL_DETAILS, getWalletOwnerDraftValues(owner));
+            addPersonalBankAccount(
+                {
+                    legalFirstName: owner.legalFirstName,
+                    legalLastName: owner.legalLastName,
+                    addressStreet: owner.addressStreet,
+                    addressStreet2: owner.addressStreet2,
+                    addressCity: owner.addressCity,
+                    addressState: owner.addressState,
+                    addressZipCode: owner.addressZipCode,
+                    country: owner.country,
+                    setupType: personalBankAccountDraft?.setupType,
+                    ...bankAccountWithToken,
+                },
+                personalPolicyID,
+            );
         }
-    }, [isBankAccountAlreadyAdded, personalBankAccountDraft?.plaidAccountID, plaidData?.bankAccounts, plaidData?.plaidAccessToken, personalPolicyID]);
+    }, [
+        isBankAccountAlreadyAdded,
+        personalBankAccountDraft?.plaidAccountID,
+        personalBankAccountDraft?.setupType,
+        plaidData?.bankAccounts,
+        plaidData?.plaidAccessToken,
+        personalPolicyID,
+        privatePersonalDetails,
+        translate,
+        walletAdditionalDetails,
+        walletAdditionalDetailsDraft,
+    ]);
 
     const isSetupTypeChosen = personalBankAccountDraft?.setupType === CONST.BANK_ACCOUNT.SETUP_TYPE.PLAID;
+    const skipPages = getSkippedBankAccountOwnerPages(getBankAccountOwnerDetails({walletAdditionalDetailsDraft, walletAdditionalDetails, privatePersonalDetails}));
 
     const {CurrentPage, isEditing, pageIndex, nextPage, prevPage, moveTo, isRedirecting} = useSubPage<SubPageProps, EnablePaymentsSubPageType>({
         pages: plaidPages,
+        skipPages,
         // Once the bank account is added there is nothing to redo on the Plaid sub-page, so a revisit shows only the confirmation.
         startFrom: isBankAccountAlreadyAdded ? confirmationPageIndex : 0,
         onFinished: submit,

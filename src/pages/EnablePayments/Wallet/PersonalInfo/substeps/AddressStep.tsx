@@ -5,6 +5,8 @@ import useOnyx from '@hooks/useOnyx';
 import type {SubPageProps} from '@hooks/useSubPage/types';
 import useWalletAdditionalDetailsStepFormSubmit from '@hooks/useWalletAdditionalDetailsStepFormSubmit';
 
+import {getBankAccountOwnerDetails} from '@pages/EnablePayments/Wallet/utils/getBankAccountOwnerDetails';
+
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
 import INPUT_IDS from '@src/types/form/WalletAdditionalDetailsForm';
@@ -26,16 +28,18 @@ function AddressStep({onNext, onMove, isEditing}: SubPageProps) {
     const {translate} = useLocalize();
 
     const [walletAdditionalDetails] = useOnyx(ONYXKEYS.WALLET_ADDITIONAL_DETAILS);
+    const [walletAdditionalDetailsDraft] = useOnyx(ONYXKEYS.FORMS.WALLET_ADDITIONAL_DETAILS_DRAFT);
+    const [privatePersonalDetails] = useOnyx(ONYXKEYS.PRIVATE_PERSONAL_DETAILS);
 
-    const defaultValues = useMemo(
-        () => ({
-            street: walletAdditionalDetails?.[PERSONAL_INFO_STEP_KEY.STREET] ?? '',
-            city: walletAdditionalDetails?.[PERSONAL_INFO_STEP_KEY.CITY] ?? '',
-            state: walletAdditionalDetails?.[PERSONAL_INFO_STEP_KEY.STATE] ?? '',
-            zipCode: walletAdditionalDetails?.[PERSONAL_INFO_STEP_KEY.ZIP_CODE] ?? '',
-        }),
-        [walletAdditionalDetails],
-    );
+    const defaultValues = useMemo(() => {
+        const owner = getBankAccountOwnerDetails({walletAdditionalDetailsDraft, walletAdditionalDetails, privatePersonalDetails});
+        return {
+            street: owner.displayStreet,
+            city: owner.addressCity,
+            state: owner.addressState,
+            zipCode: owner.addressZipCode,
+        };
+    }, [privatePersonalDetails, walletAdditionalDetails, walletAdditionalDetailsDraft]);
 
     const handleSubmit = useWalletAdditionalDetailsStepFormSubmit({
         fieldIds: STEP_FIELDS,
