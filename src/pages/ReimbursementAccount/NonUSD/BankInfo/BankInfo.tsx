@@ -54,7 +54,8 @@ function BankInfo({onBackButtonPress, onSubmit, policyID, stepNames, backTo}: No
     const isSubmittingRef = useRef(false);
 
     const submit = () => {
-        const {formFields, isLoading, isSuccess, ...corpayData} = corpayFields ?? {};
+        // These values describe the cached Corpay field request and are not bank-account form inputs accepted by BankAccount_CreateCorpay.
+        const {formFields, isLoading, isSuccess, isWithdrawal, isBusinessBankAccount, ...corpayData} = corpayFields ?? {};
 
         isSubmittingRef.current = true;
         createCorpayBankAccount({...values, ...corpayData} as ReimbursementAccountForm, policyID);

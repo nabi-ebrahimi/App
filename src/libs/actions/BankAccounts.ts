@@ -952,6 +952,8 @@ function getCorpayBankAccountFields(country: string, currency: string) {
                 value: {
                     isLoading: false,
                     isSuccess: true,
+                    isWithdrawal: true,
+                    isBusinessBankAccount: true,
                 },
             },
         ],
@@ -1331,6 +1333,10 @@ function clearCorpayBankAccountFields() {
     Onyx.set(ONYXKEYS.CORPAY_FIELDS, null);
 }
 
+function clearCorpayFieldsError() {
+    Onyx.merge(ONYXKEYS.PERSONAL_BANK_ACCOUNT, {corpayFieldsError: null});
+}
+
 function clearReimbursementAccountBankCreation() {
     Onyx.merge(ONYXKEYS.REIMBURSEMENT_ACCOUNT, {isCreateCorpayBankAccount: null, isSuccess: null, isLoading: null});
 }
@@ -1580,8 +1586,8 @@ function validatePlaidSelection(values: FormOnyxValues<AccountFormValues>, trans
     return errorFields;
 }
 
-function fetchCorpayFields(bankCountry: string, bankCurrency?: string, isWithdrawal?: boolean, isBusinessBankAccount?: boolean) {
-    API.write(
+function fetchCorpayFields(bankCountry: string, bankCurrency?: string, isWithdrawal?: boolean, isBusinessBankAccount?: boolean, options: {preserveExistingDraft?: boolean} = {}) {
+    return API.write(
         WRITE_COMMANDS.GET_CORPAY_BANK_ACCOUNT_FIELDS,
         {countryISO: bankCountry, currency: bankCurrency, isWithdrawal, isBusinessBankAccount},
         {
@@ -1591,10 +1597,11 @@ function fetchCorpayFields(bankCountry: string, bankCurrency?: string, isWithdra
                     key: ONYXKEYS.PERSONAL_BANK_ACCOUNT,
                     value: {
                         isLoading: true,
+                        corpayFieldsError: null,
                     },
                 },
                 {
-                    onyxMethod: Onyx.METHOD.SET,
+                    onyxMethod: options.preserveExistingDraft ? Onyx.METHOD.MERGE : Onyx.METHOD.SET,
                     key: ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT,
                     value: {
                         bankCountry,
@@ -1608,6 +1615,33 @@ function fetchCorpayFields(bankCountry: string, bankCurrency?: string, isWithdra
                     key: ONYXKEYS.PERSONAL_BANK_ACCOUNT,
                     value: {
                         isLoading: false,
+                    },
+                },
+            ],
+            failureData: [
+                {
+                    onyxMethod: Onyx.METHOD.MERGE,
+                    key: ONYXKEYS.PERSONAL_BANK_ACCOUNT,
+                    value: {
+                        isLoading: false,
+                        corpayFieldsError: 'common.genericErrorMessage',
+                    },
+                },
+            ],
+            successData: [
+                {
+                    onyxMethod: Onyx.METHOD.MERGE,
+                    key: ONYXKEYS.PERSONAL_BANK_ACCOUNT,
+                    value: {
+                        corpayFieldsError: null,
+                    },
+                },
+                {
+                    onyxMethod: Onyx.METHOD.MERGE,
+                    key: ONYXKEYS.CORPAY_FIELDS,
+                    value: {
+                        isWithdrawal: !!isWithdrawal,
+                        isBusinessBankAccount: !!isBusinessBankAccount,
                     },
                 },
             ],
@@ -1683,7 +1717,7 @@ function createCorpayBankAccountForWalletFlow(data: InternationalBankAccountForm
         inputs: JSON.stringify(inputData),
     };
 
-    const onyxData: OnyxData<typeof ONYXKEYS.REIMBURSEMENT_ACCOUNT> = {
+    const onyxData: OnyxData<typeof ONYXKEYS.REIMBURSEMENT_ACCOUNT | typeof ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT> = {
         optimisticData: [
             {
                 onyxMethod: Onyx.METHOD.MERGE,
@@ -1704,6 +1738,11 @@ function createCorpayBankAccountForWalletFlow(data: InternationalBankAccountForm
                     errors: null,
                     isSuccess: true,
                 },
+            },
+            {
+                onyxMethod: Onyx.METHOD.SET,
+                key: ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT,
+                value: null,
             },
         ],
         failureData: [
@@ -2004,6 +2043,7 @@ export {
     clearOnfidoToken,
     clearPersonalBankAccount,
     clearPersonalBankAccountPreservingEntryContext,
+    clearInternationalBankAccount,
     setPersonalBankAccountContinueKYCOnSuccess,
     resetPersonalBankAccountForUpdate,
     setPlaidEvent,
@@ -2048,6 +2088,7 @@ export {
     clearReimbursementAccountSaveCorpayOnboardingBeneficialOwners,
     clearReimbursementAccountSaveCorpayOnboardingDirectorInformation,
     clearCorpayBankAccountFields,
+    clearCorpayFieldsError,
     finishCorpayBankAccountOnboarding,
     shareBankAccountAndSetPayer,
     clearReimbursementAccountFinishCorpayBankAccountOnboarding,

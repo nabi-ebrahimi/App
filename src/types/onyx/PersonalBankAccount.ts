@@ -52,6 +52,9 @@ type PersonalBankAccount = {
 
     /** API error stored separately from `errors` to avoid blocking FormProvider resubmission */
     updateError?: TranslationPaths | null;
+
+    /** Error encountered while loading Corpay fields needed to resume an international Wallet setup */
+    corpayFieldsError?: TranslationPaths | null;
 };
 
 export default PersonalBankAccount;

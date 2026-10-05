@@ -3,6 +3,8 @@ import {
     clearPersonalBankAccount,
     clearPersonalBankAccountPreservingEntryContext,
     connectBankAccountWithPlaid,
+    createCorpayBankAccountForWalletFlow,
+    fetchCorpayFields,
     openPersonalBankAccountSetupView,
     openWalletPersonalBankAccountSetup,
 } from '@libs/actions/BankAccounts';
@@ -323,6 +325,77 @@ describe('actions/BankAccounts', () => {
             expect(await getOnyxValue(ONYXKEYS.FORMS.PERSONAL_BANK_ACCOUNT_FORM_DRAFT)).toBeFalsy();
             expect(Navigation.navigate).toHaveBeenCalledWith(ROUTES.SETTINGS_ADD_BANK_ACCOUNT.getRoute('settings/wallet'));
         });
+
+        test('preserves cached Corpay fields and an international Wallet draft until compatibility is checked', async () => {
+            // Given unfinished international progress and cached fields from an incompatible Corpay request
+            const personalBankAccount = {
+                source: CONST.BANK_ACCOUNT.SOURCE.WALLET,
+                currentPage: CONST.CORPAY_FIELDS.PAGE_NAME.BANK_INFORMATION,
+                currentPageAction: 'edit' as const,
+            };
+            const internationalDraft = {bankCountry: 'DE', bankCurrency: 'EUR', accountNumber: '12345678'};
+            await Onyx.set(ONYXKEYS.PERSONAL_BANK_ACCOUNT, personalBankAccount);
+            await Onyx.set(ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT, internationalDraft);
+            await Onyx.set(ONYXKEYS.CORPAY_FIELDS, {
+                bankCountry: 'DE',
+                bankCurrency: 'EUR',
+                classification: 'business',
+                destinationCountry: 'DE',
+                paymentMethods: [],
+                preferredMethod: '',
+                formFields: [],
+                isLoading: false,
+                isSuccess: true,
+                isWithdrawal: true,
+                isBusinessBankAccount: true,
+            });
+
+            // When the Wallet setup is reopened
+            openWalletPersonalBankAccountSetup({personalBankAccount, personalDraft: undefined, internationalDraft});
+            await waitForBatchedUpdates();
+
+            // Then the destination can validate compatibility without losing persisted values
+            expect(await getOnyxValue(ONYXKEYS.CORPAY_FIELDS)).toEqual(expect.objectContaining({isWithdrawal: true, isBusinessBankAccount: true}));
+            expect(await getOnyxValue(ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT)).toEqual(internationalDraft);
+            expect(Navigation.navigate).toHaveBeenCalledWith(ROUTES.SETTINGS_ADD_BANK_ACCOUNT.getRoute('settings/wallet'));
+        });
+
+        test('clears a completed international draft after the bank account is created', async () => {
+            // Given an international Wallet draft ready for submission
+            const internationalDraft = {bankCountry: 'DE', bankCurrency: 'EUR'};
+            await Onyx.set(ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT, internationalDraft);
+
+            // When the international bank account is created successfully
+            createCorpayBankAccountForWalletFlow(internationalDraft, '', 'DE', '');
+            await waitForBatchedUpdates();
+
+            // Then completed progress cannot be resumed from the Success page
+            expect(await getOnyxValue(ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT)).toBeFalsy();
+        });
+
+        test('exposes a retryable error and clears loading when refreshing Corpay fields fails', async () => {
+            // Given saved international progress that must remain available for retry
+            const internationalDraft = {
+                bankCountry: 'DE',
+                bankCurrency: 'EUR',
+                accountNumber: '12345678',
+            };
+            await Onyx.set(ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT, internationalDraft);
+            mockFetch.fail?.();
+
+            // When refreshing the matching personal Corpay fields fails
+            fetchCorpayFields('DE', 'EUR', false, false, {preserveExistingDraft: true});
+            await waitForBatchedUpdates();
+
+            // Then loading ends, a retryable error is stored, and the user's progress remains intact
+            expect(await getOnyxValue(ONYXKEYS.PERSONAL_BANK_ACCOUNT)).toEqual(
+                expect.objectContaining({
+                    isLoading: false,
+                    corpayFieldsError: 'common.genericErrorMessage',
+                }),
+            );
+            expect(await getOnyxValue(ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT)).toEqual(internationalDraft);
+        });
     });
 
     describe('cancelPersonalBankAccountEdit', () => {
@@ -355,6 +428,29 @@ describe('actions/BankAccounts', () => {
             expect(await getOnyxValue(ONYXKEYS.PERSONAL_BANK_ACCOUNT)).toEqual({
                 currentPage: CONST.ADD_PERSONAL_BANK_ACCOUNT.SUB_PAGE_NAMES.CONFIRMATION,
             });
+        });
+
+        test('restores only the international draft when a non-USD edit is canceled', async () => {
+            // Given an unconfirmed non-USD value and the international draft captured before editing began
+            const editDraftSnapshot = {
+                pageName: CONST.CORPAY_FIELDS.PAGE_NAME.ACCOUNT_DETAILS,
+                internationalBankAccountDraft: {bankCountry: 'DE', bankCurrency: 'EUR', accountNumber: '12345678'},
+            };
+            await Onyx.set(ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT, {
+                bankCountry: 'DE',
+                bankCurrency: 'EUR',
+                accountNumber: '87654321',
+            });
+            await Onyx.set(ONYXKEYS.FORMS.PERSONAL_BANK_ACCOUNT_FORM_DRAFT, {legalFirstName: 'Alberta'});
+
+            // When Back cancels the unconfirmed non-USD edit
+            cancelPersonalBankAccountEdit(editDraftSnapshot, CONST.CORPAY_FIELDS.PAGE_NAME.CONFIRM);
+            await waitForBatchedUpdates();
+
+            // Then only the international draft is restored and unrelated US draft data remains unchanged
+            expect(await getOnyxValue(ONYXKEYS.FORMS.INTERNATIONAL_BANK_ACCOUNT_FORM_DRAFT)).toEqual(editDraftSnapshot.internationalBankAccountDraft);
+            expect(await getOnyxValue(ONYXKEYS.FORMS.PERSONAL_BANK_ACCOUNT_FORM_DRAFT)).toEqual({legalFirstName: 'Alberta'});
+            expect(await getOnyxValue(ONYXKEYS.PERSONAL_BANK_ACCOUNT)).toEqual({currentPage: CONST.CORPAY_FIELDS.PAGE_NAME.CONFIRM});
         });
     });
 
