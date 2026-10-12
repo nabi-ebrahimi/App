@@ -7,7 +7,7 @@ import {getChildTransactions} from '@libs/TransactionUtils';
 
 import signalExpenseAddedGrowl from '@userActions/IOU/signalExpenseAddedGrowl';
 import type {UpdateSplitTransactionsParams} from '@userActions/IOU/SplitTransactionUpdate';
-import {hasEditableSplitExpenseLeft, updateSplitTransactions} from '@userActions/IOU/SplitTransactionUpdate';
+import {areAllSplitExpensesEligibleForReverse, updateSplitTransactions} from '@userActions/IOU/SplitTransactionUpdate';
 import {setDeleteTransactionNavigateBackUrl} from '@userActions/Report';
 
 import CONST from '@src/CONST';
@@ -29,11 +29,18 @@ function updateSplitTransactionsFromSplitExpensesFlow(params: UpdateSplitTransac
     const originalTransactionID = params.transactionData?.originalTransactionID ?? CONST.IOU.OPTIMISTIC_TRANSACTION_ID;
     const allChildTransactions = getChildTransactions(params.allTransactionsList, originalTransactionID);
     const currentSnapshotDataForSplits = params.allSnapshots?.[`${ONYXKEYS.COLLECTION.SNAPSHOT}${params.searchContext?.currentSearchHash}`]?.data;
-    const hasEditableSplitExpensesLeft = hasEditableSplitExpenseLeft(splitExpenses, params.allTransactionsList, params.allReportsList, currentSnapshotDataForSplits);
+    const canReverseSplit = areAllSplitExpensesEligibleForReverse(
+        splitExpenses,
+        allChildTransactions,
+        params.allTransactionsList,
+        params.allReportsList,
+        currentSnapshotDataForSplits,
+        params.transactionViolations,
+    );
 
     // Unfiltered, so a pure selfDM 2-split still collapses via REVERT_SPLIT_TRANSACTION. The mixed
     // workspace/selfDM case is guarded below via reverseSplitKeepsOriginalInExpenseReport instead.
-    const isReverseSplitOperation = splitExpenses.length === 1 && allChildTransactions.length > 0 && hasEditableSplitExpensesLeft;
+    const isReverseSplitOperation = splitExpenses.length === 1 && allChildTransactions.length > 0 && canReverseSplit;
 
     // Newly created split transaction IDs, excluding ones already present in allChildTransactions.
     function getNewSplitTransactionIDs(): string[] {
@@ -57,9 +64,11 @@ function updateSplitTransactionsFromSplitExpensesFlow(params: UpdateSplitTransac
         !!expenseReportID && areAllExpenseReportTransactionsSplitChildren && !anyRemainingSplitStaysInExpenseReport && !reverseSplitKeepsOriginalInExpenseReport;
     const isLastTransactionInReport = willExpenseReportBecomeEmpty || (isReverseSplitOperation && !reverseSplitKeepsOriginalInExpenseReport && expenseReportTransactions.length === 1);
     const fallbackReportID = params.expenseReport?.chatReportID ?? params.expenseReport?.parentReportID;
+    const hasAccessToFallbackReport = params.expenseReport?.hasParentAccess !== false && !!fallbackReportID;
+    const backRoute = hasAccessToFallbackReport ? ROUTES.REPORT_WITH_ID.getRoute(fallbackReportID) : ROUTES.INBOX;
 
-    if (isLastTransactionInReport && fallbackReportID) {
-        setDeleteTransactionNavigateBackUrl(ROUTES.REPORT_WITH_ID.getRoute(fallbackReportID));
+    if (isLastTransactionInReport) {
+        setDeleteTransactionNavigateBackUrl(backRoute);
     }
 
     const isSearchPageTopmostFullScreenRoute = isSearchTopmostFullScreenRoute();
@@ -130,11 +139,10 @@ function updateSplitTransactionsFromSplitExpensesFlow(params: UpdateSplitTransac
     // When the reverse split deletes the expense report, use the backward navigation pattern
     // (dismissToSuperWideRHP + goBack) instead of dismissModalWithReport. This naturally pops
     // stale screens from the stack instead of leaving them behind.
-    if (isLastTransactionInReport && fallbackReportID) {
+    if (isLastTransactionInReport) {
         // Navigates to the fallback report, not the expense report - nothing mounts to consume the highlight rail.
         updateSplitTransactions({...params, isFromSplitExpensesFlow: true, shouldSkipReportHighlightRail: true});
 
-        const backRoute = ROUTES.REPORT_WITH_ID.getRoute(fallbackReportID);
         navigateBackOnDeleteTransaction(backRoute);
 
         // Remove the transaction thread report screen to avoid navigating back to a removed report
