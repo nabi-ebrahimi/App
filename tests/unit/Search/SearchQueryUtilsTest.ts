@@ -516,12 +516,12 @@ describe('SearchQueryUtils', () => {
             expect(result).toEqual(`${defaultQuery} from:9876,87654 to:78901 amount:15000 hello test`);
         });
 
-        test('returns query with updated groupBy', () => {
+        test('ignores unsupported groupBy and preserves other filters', () => {
             const userQuery = 'from:12345 groupBy:reports';
 
             const result = getQueryWithUpdatedValues(userQuery);
 
-            expect(result).toEqual(`${defaultQuery} groupBy:reports from:12345`);
+            expect(result).toEqual(`${defaultQuery} from:12345`);
         });
 
         test('returns query with updated view', () => {
@@ -2888,7 +2888,7 @@ describe('SearchQueryUtils', () => {
             expect(isDefaultExpenses('type:expense footerTotal:billable footerCurrency:EUR')).toBe(true);
             expect(isDefaultExpenses('type:expense footerTotal:billable category:Travel')).toBe(false);
             expect(isDefaultExpenseReports('type:expense-report footerCount:expenses')).toBe(true);
-            expect(isDefaultExpenseReports('type:expense-report groupBy:report')).toBe(false);
+            expect(isDefaultExpenseReports('type:expense-report groupBy:merchant')).toBe(false);
         });
 
         it('keeps every footer selection out of the recent and similar search hashes, since none of them changes a result', () => {
