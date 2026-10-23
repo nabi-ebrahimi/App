@@ -7411,7 +7411,7 @@ describe('ReportUtils', () => {
 
     describe('shouldDisplayThreadReplies', () => {
         it.each([
-            [CONST.REPORT.TYPE.SUPPORT_TICKET, false],
+            [CONST.REPORT.TYPE.SUPPORT_TICKET, true],
             [CONST.REPORT.TYPE.CHAT, true],
             [CONST.REPORT.TYPE.TASK, true],
         ] as const)('child report type %s shows the replies footer: %s', (childType, expected) => {
@@ -7427,8 +7427,42 @@ describe('ReportUtils', () => {
             // When the parent action is displayed in its original conversation
             const shouldShowReplies = shouldDisplayThreadReplies(reportAction, false);
 
-            // Then support-ticket previews omit the footer, while other threads keep it
+            // Then support-ticket previews and other threads show the replies footer
             expect(shouldShowReplies).toBe(expected);
+        });
+
+        it('hides the support-ticket replies footer when there are no visible replies', () => {
+            // Given a support-ticket parent action without visible child replies or commenters
+            const reportAction: ReportAction = {
+                ...createRandomReportAction(89019),
+                actionName: CONST.REPORT.ACTIONS.TYPE.ADD_COMMENT,
+                childType: CONST.REPORT.TYPE.SUPPORT_TICKET,
+                childVisibleActionCount: 0,
+                childCommenterCount: 0,
+            };
+
+            // When the action is displayed in its original conversation
+            const shouldShowReplies = shouldDisplayThreadReplies(reportAction, false);
+
+            // Then no replies footer is shown
+            expect(shouldShowReplies).toBe(false);
+        });
+
+        it('hides the support-ticket replies footer on the parent action inside the ticket thread', () => {
+            // Given a support-ticket parent action with visible child replies
+            const reportAction: ReportAction = {
+                ...createRandomReportAction(89020),
+                actionName: CONST.REPORT.ACTIONS.TYPE.ADD_COMMENT,
+                childType: CONST.REPORT.TYPE.SUPPORT_TICKET,
+                childVisibleActionCount: 2,
+                childCommenterCount: 1,
+            };
+
+            // When the parent action is displayed inside its own ticket thread
+            const shouldShowReplies = shouldDisplayThreadReplies(reportAction, true);
+
+            // Then the replies footer is hidden because the user is already in the thread
+            expect(shouldShowReplies).toBe(false);
         });
     });
 
