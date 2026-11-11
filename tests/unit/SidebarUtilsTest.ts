@@ -4761,6 +4761,28 @@ describe('SidebarUtils', () => {
                 expect(result.pinnedAndGBRReports.map((report) => report.displayName)).toEqual(['Ñu Safari', 'Nuevo Budget', 'Zote Report']);
             });
 
+            it('should keep pinned reports ahead of GBR reports', () => {
+                // Given a GBR report whose name would otherwise sort between the user's pinned chats
+                const categories = {
+                    pinnedAndGBRReports: [
+                        {reportID: '1', displayName: 'Nuevo Budget', sortKey: _buildSortKey('Nuevo Budget'), isPinned: true},
+                        {reportID: '2', displayName: 'Ñu Safari', sortKey: _buildSortKey('Ñu Safari'), isPinned: true},
+                        {reportID: '3', displayName: 'Zote Report', sortKey: _buildSortKey('Zote Report'), isPinned: true},
+                        {reportID: '4', displayName: "Xn's expenses", sortKey: _buildSortKey("Xn's expenses"), isPinned: false},
+                    ],
+                    errorReports: [],
+                    draftReports: [],
+                    nonArchivedReports: [],
+                    archivedReports: [],
+                };
+
+                // When the combined pinned and GBR group is sorted after report attributes hydrate
+                const result = _sortCategorizedReports(categories, true, mockLocaleCompare);
+
+                // Then the GBR report follows the pinned chats so it cannot interrupt the pinned section
+                expect(result.pinnedAndGBRReports.map((report) => report.displayName)).toEqual(['Ñu Safari', 'Nuevo Budget', 'Zote Report', "Xn's expenses"]);
+            });
+
             it('should sort reports correctly in default mode', () => {
                 // Given the reports are created
                 const categories = {

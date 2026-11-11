@@ -141,6 +141,7 @@ type MiniReport = {
     displayName: string;
     sortKey: string;
     lastVisibleActionCreated?: string;
+    isPinned?: boolean;
 };
 
 type ShouldDisplayReportInLHNParams = {
@@ -532,6 +533,7 @@ function categorizeReportsForLHN(
             displayName,
             sortKey: buildSortKey(displayName),
             lastVisibleActionCreated: report.lastVisibleActionCreated,
+            isPinned: report.isPinned,
         };
 
         const isPinned = !!report.isPinned;
@@ -604,6 +606,14 @@ function sortCategorizedReports(
         return localeCompare(a.displayName, b.displayName);
     };
 
+    const comparePinnedAndGBRReports = (a: MiniReport, b: MiniReport) => {
+        // GBR reports can be added to this group after Onyx hydrates, but must not split the user's pinned chats.
+        if (!!a.isPinned !== !!b.isPinned) {
+            return a.isPinned ? -1 : 1;
+        }
+        return compareDisplayNames(a, b);
+    };
+
     const compareDatesDesc = (a: MiniReport, b: MiniReport) =>
         a?.lastVisibleActionCreated && b?.lastVisibleActionCreated ? compareStringDates(b.lastVisibleActionCreated, a.lastVisibleActionCreated) : 0;
 
@@ -615,7 +625,7 @@ function sortCategorizedReports(
     const sortIfNeeded = <T>(arr: T[], compareFn: (a: T, b: T) => number): T[] => (arr.length < 2 ? arr : arr.sort(compareFn));
 
     // Sort each group of reports accordingly
-    const sortedPinnedAndGBRReports = sortIfNeeded(pinnedAndGBRReports, compareDisplayNames);
+    const sortedPinnedAndGBRReports = sortIfNeeded(pinnedAndGBRReports, comparePinnedAndGBRReports);
     const sortedErrorReports = sortIfNeeded(errorReports, compareDisplayNames);
     const sortedDraftReports = sortIfNeeded(draftReports, compareDisplayNames);
 
